@@ -1,0 +1,22 @@
+{
+  "name": "webtime",
+  "version": "1.0.0",
+  "description": "A private, local-only browser screen time tracker.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/core.test.js tests/worker.test.js",
+    "test:ui": "node tests/browser.cjs",
+    "test:extension": "node tests/extension.cjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0",
+    "prettier": "3.6.2"
+  }
+}

@@ -1,0 +1,82 @@
+body {
+  width: 380px;
+  min-height: 500px;
+  padding: 23px 26px 20px;
+}
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 28px;
+}
+header select {
+  padding: 5px 7px;
+  font-size: 11px;
+}
+main h1 {
+  font-size: 66px;
+  letter-spacing: -4px;
+  font-weight: 400;
+  margin: 8px 0 2px;
+}
+main > p {
+  font-size: 12px;
+}
+.live {
+  margin: 23px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.live > span:nth-child(2) {
+  font-size: 11px;
+}
+.live-time {
+  margin-left: auto;
+}
+section {
+  border-top: 1px solid var(--line);
+  padding-top: 19px;
+}
+section h2 {
+  margin-bottom: 12px;
+}
+.popup-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 9px 0;
+  font-size: 12px;
+}
+.popup-row .favicon {
+  width: 27px;
+  height: 27px;
+}
+.popup-row .favicon img {
+  width: 19px;
+  height: 19px;
+}
+.popup-row > span:nth-child(2) {
+  flex: 1;
+}
+.popup-row:hover {
+  color: var(--accent);
+}
+.open {
+  width: 100%;
+  border-top: 1px solid var(--line);
+  margin-top: 18px;
+  padding: 17px 0 0;
+  display: flex;
+  justify-content: space-between;
+  text-align: left;
+  font-size: 12px;
+}
+.open span {
+  color: var(--accent);
+}
+.empty {
+  padding: 20px 0;
+}

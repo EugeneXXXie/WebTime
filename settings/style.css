@@ -1,0 +1,128 @@
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 34px 28px;
+}
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 46px;
+}
+h1 {
+  font-size: 42px;
+  font-weight: 400;
+  letter-spacing: -1.5px;
+}
+.intro {
+  color: var(--muted);
+  margin: 10px 0 38px;
+}
+section {
+  border-top: 1px solid var(--line);
+  padding: 25px 0 16px;
+}
+section h2 {
+  margin-bottom: 14px;
+}
+.setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 26px;
+  padding: 17px 0;
+  font-size: 14px;
+}
+.setting small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 7px;
+  line-height: 1.6;
+  max-width: 410px;
+}
+.setting select {
+  min-width: 140px;
+}
+.setting .button {
+  flex-shrink: 0;
+  font-size: 12px;
+}
+.note {
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--muted);
+  max-width: 510px;
+  margin-bottom: 8px;
+}
+#notice {
+  min-height: 28px;
+  color: var(--green);
+  font-size: 12px;
+  line-height: 1.6;
+}
+footer {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 25px 0;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+footer small {
+  line-height: 2;
+  font-size: 11px;
+}
+dialog {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line);
+  padding: 28px;
+  border-radius: 14px;
+  max-width: 440px;
+  box-shadow: 0 20px 100px #0005;
+}
+dialog[open] {
+  animation: enter 0.25s both;
+}
+dialog::backdrop {
+  background: #0009;
+  backdrop-filter: blur(4px);
+}
+dialog h2 {
+  font-size: 22px;
+  letter-spacing: -0.5px;
+  color: var(--text);
+  font-weight: 500;
+}
+dialog p {
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--muted);
+  margin: 16px 0 24px;
+}
+.actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+@media (max-width: 560px) {
+  .setting {
+    align-items: flex-start;
+    gap: 15px;
+  }
+  .setting small {
+    font-size: 11px;
+  }
+  .setting select {
+    min-width: 115px;
+    max-width: 130px;
+  }
+  .setting .button {
+    padding: 10px;
+  }
+  .brand {
+    font-size: 15px;
+  }
+}

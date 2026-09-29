@@ -1,0 +1,351 @@
+:root {
+  color-scheme: dark;
+  --bg: #08090b;
+  --surface: #101216;
+  --surface2: #15181d;
+  --line: rgba(255, 255, 255, 0.07);
+  --text: #f4f6f8;
+  --muted: #959ba6;
+  --accent: #9a8cff;
+  --soft: rgba(154, 140, 255, 0.1);
+  --green: #91c5ab;
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  font-synthesis: none;
+  font-size: 14px;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f5f6f8;
+  --surface: #fff;
+  --surface2: #eaecef;
+  --line: rgba(17, 19, 24, 0.09);
+  --text: #111318;
+  --muted: #626b79;
+  --accent: #6956d7;
+  --soft: rgba(105, 86, 215, 0.09);
+  --green: #317151;
+}
+@media (prefers-color-scheme: light) {
+  :root[data-theme="system"] {
+    color-scheme: light;
+    --bg: #f5f6f8;
+    --surface: #fff;
+    --surface2: #eaecef;
+    --line: rgba(17, 19, 24, 0.09);
+    --text: #111318;
+    --muted: #626b79;
+    --accent: #6956d7;
+    --soft: rgba(105, 86, 215, 0.09);
+    --green: #317151;
+  }
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  transition:
+    background 0.25s,
+    color 0.25s;
+  font-variant-numeric: tabular-nums;
+}
+button,
+input,
+select {
+  font: inherit;
+}
+button,
+a,
+input,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+button,
+a {
+  color: inherit;
+}
+button {
+  cursor: pointer;
+}
+a {
+  text-decoration: none;
+}
+button {
+  border: 0;
+  background: none;
+}
+button,
+input,
+select,
+a {
+  outline-offset: 5px;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: wait;
+}
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+h2,
+.eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  font-weight: 600;
+  color: var(--muted);
+}
+.muted {
+  color: var(--muted);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+.logo {
+  display: inline-block;
+  width: 25px;
+  height: 25px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  position: relative;
+}
+.logo:before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 4px;
+  width: 2px;
+  height: 8px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+.logo:after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  width: 7px;
+  height: 2px;
+  background: var(--accent);
+  transform: rotate(28deg);
+  transform-origin: left;
+}
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  gap: 12px;
+}
+.text-link {
+  font-size: 12px;
+  color: var(--muted);
+  transition: color 0.2s;
+}
+.text-link:hover {
+  color: var(--text);
+}
+.favicon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--surface2);
+  display: inline-grid;
+  place-items: center;
+  position: relative;
+  flex-shrink: 0;
+  transition: transform 0.2s;
+  overflow: hidden;
+}
+.favicon img {
+  position: absolute;
+  inset: 4px;
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+.favicon-letter {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.status {
+  font-size: 10px;
+  letter-spacing: 0.13em;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.status i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.status.live {
+  color: var(--green);
+}
+.status.live i {
+  background: var(--green);
+}
+.live {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.live-time {
+  color: var(--text);
+}
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 11px 17px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface2);
+  transition:
+    background 0.2s,
+    transform 0.2s;
+}
+.button:hover {
+  background: var(--soft);
+  transform: translateY(-1px);
+}
+.button.primary {
+  background: var(--accent);
+  color: var(--bg);
+}
+.button.danger {
+  color: #e98d93;
+}
+select,
+input {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+}
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  pointer-events: none;
+  padding: 10px 14px;
+  max-width: 210px;
+  white-space: pre-line;
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 6px 24px #0003;
+  font-size: 12px;
+  line-height: 1.6;
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 0.16s,
+    transform 0.16s;
+}
+.tooltip.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+#error {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 90vw;
+  padding: 14px 20px;
+  background: var(--surface2);
+  border: 1px solid #db7979;
+  border-radius: 8px;
+  z-index: 100;
+}
+.demo-banner {
+  padding: 9px;
+  text-align: center;
+  color: var(--accent);
+  background: var(--soft);
+  font-size: 12px;
+}
+.empty {
+  color: var(--muted);
+  padding: 38px 16px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.enter {
+  animation: enter 0.55s both;
+  animation-delay: calc(var(--order, 0) * 65ms);
+}
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes grow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+@keyframes progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+:root[data-motion="reduced"] *,
+:root[data-motion="off"] * {
+  animation: none !important;
+  scroll-behavior: auto !important;
+}
+:root[data-motion="reduced"] * {
+  transition-duration: 0.1s !important;
+}
+:root[data-motion="off"] * {
+  transition: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

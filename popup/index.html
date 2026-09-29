@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-motion="full">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>WebTime</title>
+    <link rel="stylesheet" href="../shared/base.css" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <span class="brand"><span class="logo"></span>WebTime</span
+      ><select id="theme" aria-label="Theme">
+        <option value="dark">Dark</option>
+        <option value="light">Light</option>
+        <option value="system">System</option>
+      </select>
+    </header>
+    <main>
+      <h2>TODAY</h2>
+      <h1 id="total">0m</h1>
+      <p class="muted">Total browser time</p>
+      <div id="live" class="live"></div>
+      <section>
+        <h2>TOP WEBSITES</h2>
+        <div id="sites"></div>
+      </section>
+    </main>
+    <button id="open" class="open">Open Dashboard <span>↗</span></button>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

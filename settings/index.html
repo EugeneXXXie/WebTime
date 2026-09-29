@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-motion="full">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Settings · WebTime</title>
+    <link rel="stylesheet" href="../shared/base.css" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="enter">
+      <header>
+        <a class="brand" href="../dashboard/index.html"
+          ><span class="logo"></span>WebTime</a
+        ><a href="../dashboard/index.html" class="text-link">← Dashboard</a>
+      </header>
+      <h1>Settings</h1>
+      <p class="intro">Make yourself at home.</p>
+      <section>
+        <h2>APPEARANCE</h2>
+        <label class="setting"
+          ><span>Theme<small>A quieter view, day or night.</small></span
+          ><select id="theme">
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+            <option value="system">System</option>
+          </select></label
+        ><label class="setting"
+          ><span
+            >Animation<small
+              >Your system’s reduced motion preference is always
+              respected.</small
+            ></span
+          ><select id="animation">
+            <option value="full">Full</option>
+            <option value="reduced">Reduced</option>
+            <option value="off">Off</option>
+          </select></label
+        >
+      </section>
+      <section>
+        <h2>TRACKING</h2>
+        <label class="setting"
+          ><span
+            >Idle threshold<small
+              >Pause after this long without keyboard or mouse activity.</small
+            ></span
+          ><select id="idleThreshold">
+            <option value="30">30 seconds</option>
+            <option value="60">60 seconds</option>
+            <option value="120">2 minutes</option>
+            <option value="300">5 minutes</option>
+          </select></label
+        >
+        <p class="note">
+          Only the active website in your focused browser window is counted.
+          Internal browser pages and private windows are excluded.
+        </p>
+      </section>
+      <section>
+        <h2>YOUR DATA</h2>
+        <div class="setting">
+          <span
+            >Keep a copy<small
+              >Export your local statistics as a JSON backup.</small
+            ></span
+          ><button id="export" class="button">Export data ↗</button>
+        </div>
+        <div class="setting">
+          <span
+            >Restore a backup<small
+              >Validated before replacing your current statistics.</small
+            ></span
+          ><button id="import" class="button">Import data</button
+          ><input
+            id="file"
+            type="file"
+            accept="application/json,.json"
+            hidden
+          />
+        </div>
+        <div class="setting">
+          <span
+            >Start fresh<small
+              >Permanently delete all recorded website time.</small
+            ></span
+          ><button id="clear" class="button danger">Clear all data</button>
+        </div>
+      </section>
+      <p id="notice" role="status" aria-live="polite"></p>
+      <footer>
+        <span class="logo"></span>
+        <p>
+          Your browsing stays yours.<br /><small
+            >No servers, accounts, analytics or telemetry.</small
+          >
+        </p>
+      </footer>
+    </main>
+    <dialog id="confirm">
+      <form method="dialog">
+        <h2 id="confirm-title">Clear all data?</h2>
+        <p id="confirm-copy"></p>
+        <div class="actions">
+          <button value="cancel" class="button" autofocus>Cancel</button
+          ><button value="confirm" id="confirm-action" class="button danger">
+            Clear data
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

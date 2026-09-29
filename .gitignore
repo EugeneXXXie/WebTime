@@ -1,0 +1,13 @@
+tests/artifacts/
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.env
+.env.*
+webtime-backup-*.json
+screentime-backup-*.json
