@@ -14,6 +14,8 @@ import {
   isDemo,
   isExtension,
   updateDOM,
+  localize,
+  onSettingsChanged,
 } from "../shared/ui.js";
 import { bars, ring, rhythm } from "./charts.js";
 const state = {
@@ -48,7 +50,7 @@ function hero(summary, count) {
     difference === null
       ? "No previous data yet"
       : `${difference >= 0 ? "↑" : "↓"} ${Math.abs(difference).toFixed(0)}% from ${count === 1 ? "yesterday" : "previous period"}`;
-  return `<section class="hero enter" style="--order:1"><div><h1 class="hero-number" id="hero-number">${duration(summary.total)}</h1><div class="hero-caption"><span>Total browser time</span><span class="comparison">${comparison}</span></div></div><div class="stats"><div class="stat"><strong>${summary.sites.length}</strong><span>Active websites</span></div><div class="stat"><strong>${count === 1 ? summary.sessions : duration(summary.total / count)}</strong><span>${count === 1 ? "Sessions" : "Daily average"}</span></div><div class="stat"><strong>${duration(summary.sessions ? summary.total / summary.sessions : 0, true)}</strong><span>Average session</span></div></div></section>`;
+  return `<section class="hero enter" style="--order:1"><div><h1 class="hero-number" id="hero-number">${duration(summary.total)}</h1><div class="hero-caption"><span title="Concurrent websites count once">Total browser time · overlaps counted once</span><span class="comparison">${comparison}</span></div></div><div class="stats"><div class="stat"><strong>${summary.sites.length}</strong><span>Active websites</span></div><div class="stat"><strong>${count === 1 ? summary.sessions : duration(summary.total / count)}</strong><span>${count === 1 ? "Sessions" : "Daily average"}</span></div><div class="stat"><strong>${duration(summary.sessions ? summary.websiteTotal / summary.sessions : 0, true)}</strong><span>Avg. website session</span></div></div></section>`;
 }
 function overview(count) {
   const days = dates(count),
@@ -56,7 +58,7 @@ function overview(count) {
     week = dates(7),
     weekly = summarize(state.snapshot.data, week);
   const peak = summary.hourly.indexOf(Math.max(...summary.hourly));
-  return `${heading(count === 1 ? "TODAY" : `LAST ${count} DAYS`, count === 1 ? fullDate(dayKey()) : `${fullDate(days[0])} — ${fullDate(days.at(-1))}`)}${hero(summary, count)}<section class="activity enter" style="--order:2"><div class="section-head"><h2>${count === 1 ? "ACTIVITY TODAY" : "DAILY ACTIVITY"}</h2><span class="activity-note">${summary.total ? (count === 1 ? `Peak activity · ${String(peak).padStart(2, "0")}:00 — ${String(peak + 1).padStart(2, "0")}:00` : `${count} days · ${duration(summary.total / count)} daily average`) : "Your activity will appear as you browse"}</span></div>${bars(count === 1 ? summary.hourly : summary.daily, count === 1 ? Array.from({ length: 24 }, (_, h) => h) : days, { hourly: count === 1 })}</section>${count === 1 ? `<div class="middle"><section class="websites-section enter" style="--order:3"><div class="section-head"><h2>TOP WEBSITES</h2><a class="text-link" href="#websites">View all websites ↗</a></div>${rows(summary.sites, summary.total, 5)}</section><section class="breakdown enter" style="--order:4"><div class="section-head"><h2>USAGE BREAKDOWN</h2><span class="muted" style="font-size:11px">By website</span></div>${ring(summary.sites, summary.total)}</section></div><section class="week-strip enter" style="--order:5"><div class="section-head"><h2>LAST 7 DAYS</h2><a class="text-link" href="#week">${duration(weekly.total / 7)} daily average ↗</a></div>${bars(weekly.daily, week, { compact: true })}</section>` : `<div class="period-bottom"><section class="websites-section"><div class="section-head"><h2>TOP WEBSITES</h2><a href="#websites" class="text-link">View all ↗</a></div>${rows(summary.sites, summary.total, 8)}</section><section class="rhythm-section"><div class="section-head"><h2>BROWSER RHYTHM</h2><span class="muted">Last 7 days</span></div>${rhythm(state.snapshot.data, week)}</section></div>`}`;
+  return `${heading(count === 1 ? "TODAY" : `LAST ${count} DAYS`, count === 1 ? fullDate(dayKey()) : `${fullDate(days[0])} — ${fullDate(days.at(-1))}`)}${hero(summary, count)}<section class="activity enter" style="--order:2"><div class="section-head"><h2>${count === 1 ? "ACTIVITY TODAY" : "DAILY ACTIVITY"}</h2><span class="activity-note">${summary.total ? (count === 1 ? `Peak activity · ${String(peak).padStart(2, "0")}:00 — ${String(peak + 1).padStart(2, "0")}:00` : `${count} days · ${duration(summary.total / count)} daily average`) : "Your activity will appear as you browse"}</span></div>${bars(count === 1 ? summary.hourly : summary.daily, count === 1 ? Array.from({ length: 24 }, (_, h) => h) : days, { hourly: count === 1 })}</section>${count === 1 ? `<div class="middle"><section class="websites-section enter" style="--order:3"><div class="section-head"><h2>TOP WEBSITES</h2><a class="text-link" href="#websites">View all websites ↗</a></div>${rows(summary.sites, summary.websiteTotal, 5)}</section><section class="breakdown enter" style="--order:4"><div class="section-head"><h2>USAGE BREAKDOWN</h2><span class="muted" style="font-size:11px">Share of website time</span></div>${ring(summary.sites, summary.websiteTotal)}</section></div><section class="week-strip enter" style="--order:5"><div class="section-head"><h2>LAST 7 DAYS</h2><a class="text-link" href="#week">${duration(weekly.total / 7)} daily average ↗</a></div>${bars(weekly.daily, week, { compact: true })}</section>` : `<div class="period-bottom"><section class="websites-section"><div class="section-head"><h2>TOP WEBSITES</h2><a href="#websites" class="text-link">View all ↗</a></div>${rows(summary.sites, summary.websiteTotal, 8)}</section><section class="rhythm-section"><div class="section-head"><h2>BROWSER RHYTHM</h2><span class="muted">Last 7 days</span></div>${rhythm(state.snapshot.data, week)}</section></div>`}`;
 }
 function directoryRows() {
   const all = Object.entries(state.snapshot.data.domains).map(
@@ -115,6 +117,7 @@ function render(animate = true) {
     updateDOM(app.firstElementChild, template.content.firstElementChild);
   }
   if ($("#sort")) $("#sort").value = state.sort;
+  localize();
   navigation();
   if (animate && $("#hero-number"))
     countUp(
@@ -145,12 +148,14 @@ app.addEventListener("input", (e) => {
   if (e.target.id === "search") {
     state.search = e.target.value;
     $("#directory").innerHTML = directoryRows();
+    localize();
   }
 });
 app.addEventListener("change", (e) => {
   if (e.target.id === "sort") {
     state.sort = e.target.value;
     $("#directory").innerHTML = directoryRows();
+    localize();
   }
 });
 function highlight(e) {
@@ -210,9 +215,18 @@ setInterval(() => {
   if (!document.hidden) refresh();
 }, 5000);
 setInterval(() => {
-  if ($("#live") && state.snapshot)
+  if ($("#live") && state.snapshot) {
     $("#live").innerHTML = liveMarkup(state.snapshot.live);
+    localize($("#live"));
+  }
 }, 1000);
+addEventListener("webtime-languagechange", () => render(false));
+onSettingsChanged((settings) => {
+  if (state.snapshot) {
+    state.snapshot.data.settings = settings;
+    render(false);
+  }
+});
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) refresh();
 });

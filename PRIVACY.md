@@ -6,19 +6,19 @@ WebTime has no server, account, analytics, telemetry or cloud sync. The extensio
 
 In `chrome.storage.local`: normalized hostnames, domain-derived display names, daily/hourly durations, session counts, last activity timestamps, settings and the current accounting checkpoint. `chrome.storage.session` holds a transient browser-session marker.
 
-The active tab's URL is read to determine its hostname. Full URLs, paths, query strings, page titles and page contents are not saved. Private/incognito tabs and non-HTTP(S) pages are excluded.
+Open tabs' URLs are read to determine their hostnames. Full URLs, paths, query strings, page titles and page contents are not saved. Private/incognito tabs and non-HTTP(S) pages are excluded.
 
 Icons are requested through the browser's own `_favicon` extension endpoint using the site's root domain. WebTime does not call a third-party favicon service or load remote scripts, fonts or images directly. The browser manages its own favicon cache.
 
 ## Permissions
 
-| Permission | Reason                                       |
-| ---------- | -------------------------------------------- |
-| `tabs`     | Read the hostname of the active tab          |
-| `idle`     | Pause when the system is idle or locked      |
-| `storage`  | Save statistics and settings locally         |
-| `alarms`   | Checkpoint and recover the background worker |
-| `favicon`  | Display browser-managed website icons        |
+| Permission | Reason                                                  |
+| ---------- | ------------------------------------------------------- |
+| `tabs`     | Read hostnames of open tabs                             |
+| `idle`     | Pause when the system is locked (input idle is ignored) |
+| `storage`  | Save statistics and settings locally                    |
+| `alarms`   | Checkpoint and recover the background worker            |
+| `favicon`  | Display browser-managed website icons                   |
 
 ## Your controls
 

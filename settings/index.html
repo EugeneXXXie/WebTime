@@ -19,6 +19,23 @@
       <section>
         <h2>APPEARANCE</h2>
         <label class="setting"
+          ><span
+            >Language<small
+              >Follow your system language, or choose your own.</small
+            ></span
+          ><select id="language">
+            <option value="system">System</option>
+            <option value="zh">中文</option>
+            <option value="en">English</option>
+            <option value="ja">日本語</option>
+            <option value="ko">한국어</option>
+            <option value="de">Deutsch</option>
+            <option value="it">Italiano</option>
+            <option value="ru">Русский</option>
+            <option value="es">Español</option>
+          </select></label
+        >
+        <label class="setting"
           ><span>Theme<small>A quieter view, day or night.</small></span
           ><select id="theme">
             <option value="dark">Dark</option>
@@ -40,21 +57,18 @@
       </section>
       <section>
         <h2>TRACKING</h2>
-        <label class="setting"
-          ><span
-            >Idle threshold<small
-              >Pause after this long without keyboard or mouse activity.</small
-            ></span
-          ><select id="idleThreshold">
-            <option value="30">30 seconds</option>
-            <option value="60">60 seconds</option>
-            <option value="120">2 minutes</option>
-            <option value="300">5 minutes</option>
-          </select></label
-        >
         <p class="note">
-          Only the active website in your focused browser window is counted.
-          Internal browser pages and private windows are excluded.
+          All open, loaded websites are counted, including background tabs and
+          windows. Keyboard inactivity and window focus do not pause tracking.
+        </p>
+        <p class="note">
+          Multiple tabs on the same domain count once. Different websites can
+          overlap; total browser time counts each moment once. Close tabs you no
+          longer want to count.
+        </p>
+        <p class="note">
+          Locked screens, private windows, internal pages, and tabs discarded or
+          frozen by the browser are excluded.
         </p>
       </section>
       <section>

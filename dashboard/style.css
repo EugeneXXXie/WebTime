@@ -322,6 +322,16 @@ main {
   font-weight: 400;
   font-size: 28px;
   letter-spacing: -1px;
+  max-width: 65%;
+  text-align: center;
+}
+:root:not(:lang(en)) .ring-label strong {
+  font-size: 20px;
+}
+:root:not(:lang(en)) .ring-label span {
+  max-width: 65%;
+  text-align: center;
+  letter-spacing: 0;
 }
 .ring-label span {
   font-size: 9px;

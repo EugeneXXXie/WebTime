@@ -26,6 +26,7 @@ Screenshots are rendered in a real browser using synthetic demo data, not anyone
 - **Website details:** searchable, sortable history with per-domain daily activity.
 - **Focused popup:** today's total, live state and top websites.
 - **Dark, light and system themes**, keyboard access and reduced/off motion preferences.
+- **Eight interface languages:** Chinese, English, Japanese, Korean, German, Italian, Russian and Spanish. Language defaults to **System** (Chrome's preferred languages), with a manual override in Settings. Unsupported preferences fall back to English. Dates and time units follow the selected language; website names stay unchanged.
 - **Local JSON backups:** export, validated replacement import and confirmed clearing.
 
 ## Install
@@ -35,21 +36,23 @@ Screenshots are rendered in a real browser using synthetic demo data, not anyone
 3. Choose **Load unpacked** and select the repository root — the directory containing `manifest.json`.
 4. Pin WebTime to the toolbar. Browse normally, then open the popup and select **Open Dashboard**.
 
-Chrome/Chromium 120+ is required. No npm install is needed for normal use. New installations start with empty statistics. This repository does not provide a Chrome Web Store listing.
+Chrome/Chromium 132+ is required. No npm install is needed for normal use. New installations start with empty statistics. This repository does not provide a Chrome Web Store listing.
 
 ### Updating from ScreenTime
 
-Reload the extension at the same path with the same extension ID. Existing storage keys and version-1 backups are unchanged; old ScreenTime JSON backups remain importable. New exports use `webtime-backup-YYYY-MM-DD.json`.
+Reload the extension at the same path with the same extension ID. Existing storage keys are unchanged. Version-1 histories and backups migrate automatically to version 2; old ScreenTime JSON backups remain importable. Version-2 exports require WebTime 1.1.0 or newer. New exports use `webtime-backup-YYYY-MM-DD.json`.
 
 If you move the installation or change extension ID, export a backup first and import it into the new installation. Keep the folder name unchanged while testing an existing unpacked installation.
 
 ## What counts as browser time?
 
-Time is recorded only when a **normal browser window is focused**, its **active tab is HTTP(S)**, and the **system is not idle or locked**. Background windows, private tabs and internal pages are excluded.
+Time is recorded for **all open, loaded HTTP(S) tabs in normal browser windows**, including background tabs and unfocused/minimized windows. Keyboard inactivity does not pause tracking. Private tabs, internal pages, discarded/frozen tabs and OS-locked time are excluded.
 
-The default idle threshold is 60 seconds, configurable to 30, 60, 120 or 300 seconds. Passive video viewing without input also pauses after this threshold. This measures observable browser activity, not attention.
+**One domain, one clock.** Two YouTube tabs open for 20 minutes count as 20 minutes of YouTube. YouTube and GitHub open together for 20 minutes each show 20 minutes, while total browser time remains 20 minutes. The main total and activity charts count the union of these intervals. Website percentages and the ring use the sum of website times, so their shares add up to 100%; this sum may exceed total browser time.
 
-Hostnames are normalized by removing `www.`; other subdomains and country domains remain separate. Intervals are split into local calendar-day and hour buckets. Moving within the same domain continues the session. Existing history is not rebucketed after a timezone change.
+There is no idle threshold or media-playback detection. A paused video or unread background tab continues counting while it remains loaded. Close tabs you no longer want to count. WebTime measures open-website time, not attention or verified playback.
+
+Hostnames are normalized by removing `www.`; other subdomains and country domains remain separate. Intervals are split into local calendar-day and hour buckets. A domain session continues while at least one eligible tab for that domain remains open. Existing history is not rebucketed after a timezone change.
 
 **Accuracy limits:** Chrome may delay background alarms or terminate its worker. WebTime checkpoints about every 20 seconds while running and uses a 30-second alarm fallback. Gaps longer than 45 seconds and backwards clock changes are discarded conservatively. Crashes or heavy background throttling can lose unconfirmed time; sleeping/closed time is not deliberately backfilled. It is not a billing-grade stopwatch.
 
@@ -57,13 +60,13 @@ Hostnames are normalized by removing `www.`; other subdomains and country domain
 
 Statistics stay in `chrome.storage.local`. Full URLs, queries, page titles and page contents are not saved. A transient `storage.session` marker distinguishes worker recovery from browser restart. Favicons come from the browser-managed endpoint; WebTime uses no third-party favicon service.
 
-| Permission | Purpose                                 |
-| ---------- | --------------------------------------- |
-| `tabs`     | Determine the active website's hostname |
-| `idle`     | Pause on idle/lock                      |
-| `storage`  | Store local statistics and settings     |
-| `alarms`   | Checkpoint and recover tracking         |
-| `favicon`  | Display browser-managed icons           |
+| Permission | Purpose                             |
+| ---------- | ----------------------------------- |
+| `tabs`     | Determine open websites' hostnames  |
+| `idle`     | Pause on OS lock only               |
+| `storage`  | Store local statistics and settings |
+| `alarms`   | Checkpoint and recover tracking     |
+| `favicon`  | Display browser-managed icons       |
 
 Backups contain domains and timestamps. Keep them private. See [PRIVACY.md](PRIVACY.md) for retention, export and deletion details. Imports are limited to 8 MB and normal Chrome local-storage quotas apply.
 

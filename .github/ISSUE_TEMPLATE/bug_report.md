@@ -20,8 +20,7 @@ labels: bug
 - WebTime version:
 - Browser and version:
 - Operating system:
-- Idle threshold:
 
 ### Evidence / 证据
 
-Include errors or screenshots with personal domains redacted. Do not upload your browsing backup or browser profile. For timing issues, note window focus, idle state and whether Service Worker DevTools was open.
+Include errors or screenshots with personal domains redacted. Do not upload your browsing backup or browser profile. For timing issues, note open tabs, OS lock/sleep state and whether Service Worker DevTools was open.

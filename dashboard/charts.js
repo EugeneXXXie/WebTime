@@ -1,4 +1,4 @@
-import { escape, duration, shortDay, fullDate } from "../shared/ui.js";
+import { escape, duration, shortDay, fullDate, t } from "../shared/ui.js";
 export const palette = ["#9a8cff", "#718eb9", "#77aaa4", "#b4a18a", "#77798c"];
 export function bars(values, labels, { compact = false, hourly = false } = {}) {
   const max = Math.max(...values, 1),
@@ -20,7 +20,7 @@ export function bars(values, labels, { compact = false, hourly = false } = {}) {
 export function ring(sites, total) {
   const items = sites.slice(0, 4).map((s) => ({ ...s, label: s.title }));
   const rest = sites.slice(4).reduce((n, s) => n + s.seconds, 0);
-  if (rest) items.push({ domain: "other", label: "Other", seconds: rest });
+  if (rest) items.push({ domain: "other", label: t("Other"), seconds: rest });
   let offset = 0;
   const circumference = 2 * Math.PI * 78;
   return `<div class="breakdown-body"><div class="ring"><svg viewBox="0 0 200 200" role="group" aria-label="Website usage breakdown"><circle cx="100" cy="100" r="78" class="ring-track"/>${items
@@ -28,16 +28,16 @@ export function ring(sites, total) {
       const length = (s.seconds / (total || 1)) * circumference,
         start = offset;
       offset += length;
-      return `<circle tabindex="0" role="img" aria-label="${escape(s.label)} ${Math.round((s.seconds / (total || 1)) * 100)} percent" data-domain="${escape(s.domain)}" data-tip="${escape(s.label)} · ${duration(s.seconds)}" class="segment" cx="100" cy="100" r="78" stroke="${palette[i]}" stroke-dasharray="${Math.max(0, length - 4)} ${circumference - Math.max(0, length - 4)}" stroke-dashoffset="${-start}"/>`;
+      return `<circle tabindex="0" role="img" aria-label="${escape(s.label)} ${Math.round((s.seconds / (total || 1)) * 100)}%" data-domain="${escape(s.domain)}" data-tip="${escape(s.label)} · ${duration(s.seconds)}" class="segment" cx="100" cy="100" r="78" stroke="${palette[i]}" stroke-dasharray="${Math.max(0, length - 4)} ${circumference - Math.max(0, length - 4)}" stroke-dashoffset="${-start}"/>`;
     })
     .join(
       "",
-    )}</svg><div class="ring-label"><strong>${duration(total)}</strong><span>TOTAL TIME</span></div></div><div class="legend">${items.map((s, i) => `<button data-domain="${escape(s.domain)}" data-tip="${duration(s.seconds)}" ${s.domain !== "other" ? `data-detail="${escape(s.domain)}"` : ""}><i style="background:${palette[i]}"></i><span>${escape(s.label)}</span><b>${Math.round((s.seconds / (total || 1)) * 100)}%</b></button>`).join("") || '<span class="muted">Your browsing mix will appear here.</span>'}</div></div>`;
+    )}</svg><div class="ring-label"><strong>${duration(total)}</strong><span>WEBSITE TIME</span></div></div><div class="legend">${items.map((s, i) => `<button data-domain="${escape(s.domain)}" data-tip="${duration(s.seconds)}" ${s.domain !== "other" ? `data-detail="${escape(s.domain)}"` : ""}><i style="background:${palette[i]}"></i><span>${escape(s.label)}</span><b>${Math.round((s.seconds / (total || 1)) * 100)}%</b></button>`).join("") || '<span class="muted">Your browsing mix will appear here.</span>'}</div></div>`;
 }
 export function rhythm(data, days) {
   const cells = days.map((day) =>
     Array.from({ length: 24 }, (_, h) =>
-      Object.values(data.domains).reduce(
+      (data.activity ? [data.activity] : Object.values(data.domains)).reduce(
         (n, s) => n + (s.hourly[day]?.[h] || 0),
         0,
       ),

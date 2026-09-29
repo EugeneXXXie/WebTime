@@ -25,30 +25,32 @@ async function initialize() {
     chrome.storage.session.get("running"),
   ]);
   tracker = new Tracker(store.data, session.running ? store.checkpoint : null);
-  chrome.idle.setDetectionInterval(tracker.data.settings.idleThreshold);
   await chrome.storage.session.set({ running: true });
   if (!(await chrome.alarms.get("checkpoint")))
     await chrome.alarms.create("checkpoint", { periodInMinutes: 0.5 });
 }
 async function active() {
-  const idle = await chrome.idle.queryState(
-    tracker.data.settings.idleThreshold,
-  );
-  if (idle !== "active") return { domain: null, status: "paused" };
+  // Query only to distinguish OS lock; an idle keyboard never pauses open tabs.
+  const idle = await chrome.idle.queryState(60);
+  if (idle === "locked") return { domains: [], status: "paused" };
   const windows = await chrome.windows.getAll({ windowTypes: ["normal"] });
-  const focused = windows.find((w) => w.focused);
-  if (!focused) return { domain: null, status: "inactive" };
-  const [tab] = await chrome.tabs.query({ active: true, windowId: focused.id });
-  return {
-    domain: tab && !tab.incognito ? normalizeDomain(tab.url) : null,
-    status: "inactive",
-  };
+  const normal = new Set(windows.map((w) => w.id));
+  const tabs = (await chrome.tabs.query({})).filter(
+    (tab) =>
+      normal.has(tab.windowId) &&
+      !tab.incognito &&
+      !tab.discarded &&
+      !tab.frozen &&
+      normalizeDomain(tab.url),
+  );
+  const domains = [...new Set(tabs.map((tab) => normalizeDomain(tab.url)))];
+  return { domains, status: "inactive" };
 }
 async function reconcile(force = false) {
   await initialize();
   const state = await active(),
     now = Date.now();
-  tracker.update(state.domain, now, state.status);
+  tracker.update(state.domains, now, state.status);
   if (force || now - lastSave >= SAVE_INTERVAL) {
     await save(tracker.data, tracker.current);
     lastSave = now;
@@ -62,7 +64,13 @@ async function reconcile(force = false) {
 const changed = () => serialize(() => reconcile(true));
 chrome.tabs.onActivated.addListener(changed);
 chrome.tabs.onUpdated.addListener((_id, info) => {
-  if (info.url || info.status === "complete") changed();
+  if (
+    info.url ||
+    info.status === "complete" ||
+    "discarded" in info ||
+    "frozen" in info
+  )
+    changed();
 });
 chrome.tabs.onRemoved.addListener(changed);
 chrome.windows.onFocusChanged.addListener(changed);
@@ -81,6 +89,7 @@ chrome.runtime.onStartup.addListener(() =>
 );
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (sender.id !== chrome.runtime.id) return false;
+
   serialize(async () => {
     await initialize();
     if (message.type === "snapshot") return reconcile(false);
@@ -89,7 +98,6 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
       const settings = validateSettings(message.settings);
       await reconcile(true);
       tracker.data.settings = settings;
-      chrome.idle.setDetectionInterval(settings.idleThreshold);
       return reconcile(true);
     }
     if (message.type === "import" || message.type === "clear") {
@@ -101,7 +109,6 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
       await save(data, null);
       tracker = new Tracker(data);
       lastSave = Date.now();
-      chrome.idle.setDetectionInterval(data.settings.idleThreshold);
       return reconcile(true);
     }
     throw Error("Unknown request.");

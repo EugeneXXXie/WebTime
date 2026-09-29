@@ -73,7 +73,7 @@ test("import round-trip and invalid data rejected", () => {
   assert.deepEqual(validateBackup(JSON.parse(JSON.stringify(data))), data);
   for (const bad of [
     {},
-    { ...data, version: 2 },
+    { ...data, version: 99 },
     { ...data, settings: { theme: "evil" } },
     { ...data, domains: { "https://bad/a": {} } },
   ])
@@ -84,8 +84,18 @@ test("import round-trip and invalid data rejected", () => {
 });
 test("single-label hostnames cannot collide with object prototypes", () => {
   const data = freshData();
-  for (const host of ["constructor", "__proto__", "prototype"])
-    addInterval(data, host, 100000, 110000, true);
+  for (const [index, host] of [
+    "constructor",
+    "__proto__",
+    "prototype",
+  ].entries())
+    addInterval(
+      data,
+      host,
+      100000 + index * 10000,
+      110000 + index * 10000,
+      true,
+    );
   assert.equal(data.domains.constructor.totalSeconds, 10);
   assert.equal(data.domains.__proto__.totalSeconds, 10);
   assert.deepEqual(validateBackup(JSON.parse(JSON.stringify(data))), data);
