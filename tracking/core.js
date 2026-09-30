@@ -2,12 +2,13 @@ export const MAX_GAP_MS = 45000;
 export const DEFAULT_SETTINGS = {
   theme: "dark",
   animation: "full",
-  idleThreshold: 60,
+  language: "system",
 };
 export const freshData = () => ({
-  version: 1,
+  version: 2,
   settings: { ...DEFAULT_SETTINGS },
   domains: {},
+  activity: { totalSeconds: 0, daily: {}, hourly: {} },
 });
 export function normalizeDomain(url) {
   try {
@@ -44,7 +45,14 @@ export function siteName(domain) {
   };
   return Object.hasOwn(known, domain) ? known[domain] : domain;
 }
-export function addInterval(data, domain, start, end, newSession = false) {
+export function addInterval(
+  data,
+  domain,
+  start,
+  end,
+  newSession = false,
+  countTotal = true,
+) {
   if (end <= start) return;
   if (!Object.hasOwn(data.domains, domain))
     Object.defineProperty(data.domains, domain, {
@@ -63,7 +71,11 @@ export function addInterval(data, domain, start, end, newSession = false) {
   const site = data.domains[domain];
   if (newSession)
     site.sessions[dayKey(start)] = (site.sessions[dayKey(start)] || 0) + 1;
-  // Split at local hour boundaries, including midnight and DST changes.
+  addBuckets(site, start, end);
+  site.lastVisited = end;
+  if (countTotal) addBuckets(data.activity, start, end);
+}
+function addBuckets(bucket, start, end) {
   let cursor = start;
   while (cursor < end) {
     const d = new Date(cursor),
@@ -71,48 +83,72 @@ export function addInterval(data, domain, start, end, newSession = false) {
       hour = d.getHours();
     const next = new Date(cursor);
     next.setMinutes(60, 0, 0);
-    const stop = Math.min(end, next.getTime());
-    const seconds = (stop - cursor) / 1000;
-    site.totalSeconds += seconds;
-    site.daily[day] = (site.daily[day] || 0) + seconds;
-    site.hourly[day] ||= {};
-    site.hourly[day][hour] = (site.hourly[day][hour] || 0) + seconds;
+    const stop = Math.min(end, next.getTime()),
+      seconds = (stop - cursor) / 1000;
+    bucket.totalSeconds += seconds;
+    bucket.daily[day] = (bucket.daily[day] || 0) + seconds;
+    bucket.hourly[day] ||= {};
+    bucket.hourly[day][hour] = (bucket.hourly[day][hour] || 0) + seconds;
     cursor = stop;
   }
-  site.lastVisited = end;
 }
 export class Tracker {
   constructor(data, current = null) {
     this.data = data;
-    this.current = current;
-    this.status = current?.domain ? "live" : "inactive";
+    // Accept a version-one in-flight checkpoint after a code reload.
+    this.current =
+      current?.domain && !current.domains
+        ? {
+            ...current,
+            domains: [
+              {
+                domain: current.domain,
+                started: current.started,
+                counted: current.counted,
+              },
+            ],
+          }
+        : current;
+    this.status = this.current?.domains?.length ? "live" : "inactive";
   }
-  update(domain, now = Date.now(), status = "inactive") {
+  update(input, now = Date.now(), status = "inactive") {
+    const domains = [
+      ...new Set((Array.isArray(input) ? input : [input]).filter(Boolean)),
+    ];
     const previous = this.current,
       gap = previous ? now - previous.at : 0;
     const continuous = previous && gap >= 0 && gap <= MAX_GAP_MS;
-    if (continuous && previous.domain)
-      addInterval(
-        this.data,
-        previous.domain,
-        previous.at,
-        now,
-        !previous.counted,
-      );
-    this.current = domain
+    if (continuous && previous.domains.length && gap > 0) {
+      for (const item of previous.domains)
+        addInterval(
+          this.data,
+          item.domain,
+          previous.at,
+          now,
+          !item.counted,
+          false,
+        );
+      // Union of concurrent domains: one elapsed interval, never N times.
+      addBuckets(this.data.activity, previous.at, now);
+    }
+    const items = domains.map((domain) => {
+      const old =
+        continuous && previous.domains.find((item) => item.domain === domain);
+      return {
+        domain,
+        started: old ? old.started : now,
+        counted: !!(old && (old.counted || gap > 0)),
+      };
+    });
+    this.current = items.length
       ? {
-          domain,
+          domains: items,
+          domain: items[0].domain,
+          started: items[0].started,
           at: now,
-          started:
-            continuous && previous.domain === domain ? previous.started : now,
-          counted: !!(
-            continuous &&
-            previous.domain === domain &&
-            (previous.counted || gap > 0)
-          ),
         }
       : null;
-    this.status = domain ? "live" : status;
+    this.status = items.length ? "live" : status;
   }
 }
 export function summarize(data, days, domain = null) {
@@ -125,34 +161,44 @@ export function summarize(data, days, domain = null) {
     }))
     .filter((s) => s.seconds > 0)
     .sort((a, b) => b.seconds - a.seconds);
-  const total = sites.reduce((n, s) => n + s.seconds, 0);
+  const websiteTotal = sites.reduce((n, s) => n + s.seconds, 0);
+  const total = domain
+    ? websiteTotal
+    : days.reduce((n, d) => n + (data.activity.daily[d] || 0), 0);
   const sessions = sites.reduce(
     (n, s) => n + days.reduce((v, d) => v + (s.sessions[d] || 0), 0),
     0,
   );
   const daily = days.map((day) =>
-    sites.reduce((n, s) => n + (s.daily[day] || 0), 0),
+    domain
+      ? sites.reduce((n, s) => n + (s.daily[day] || 0), 0)
+      : data.activity.daily[day] || 0,
   );
   const hourly = Array.from({ length: 24 }, (_, h) =>
-    sites.reduce(
-      (n, s) => n + days.reduce((v, d) => v + (s.hourly[d]?.[h] || 0), 0),
-      0,
-    ),
+    domain
+      ? sites.reduce(
+          (n, s) => n + days.reduce((v, d) => v + (s.hourly[d]?.[h] || 0), 0),
+          0,
+        )
+      : days.reduce((n, d) => n + (data.activity.hourly[d]?.[h] || 0), 0),
   );
-  return { sites, total, sessions, daily, hourly };
+  return { sites, total, websiteTotal, sessions, daily, hourly };
 }
 export function validateSettings(s) {
   if (
     !s ||
     !["dark", "light", "system"].includes(s.theme) ||
     !["full", "reduced", "off"].includes(s.animation) ||
-    ![30, 60, 120, 300].includes(s.idleThreshold)
+    (s.language !== undefined &&
+      !["system", "en", "zh", "ja", "ko", "de", "it", "ru", "es"].includes(
+        s.language,
+      ))
   )
     throw Error("Invalid settings.");
   return {
     theme: s.theme,
     animation: s.animation,
-    idleThreshold: s.idleThreshold,
+    language: s.language ?? "system",
   };
 }
 export function validateBackup(input) {
@@ -165,9 +211,14 @@ export function validateBackup(input) {
   const number = (v) => typeof v === "number" && Number.isFinite(v) && v >= 0;
   const date = (k) =>
     /^\d{4}-\d{2}-\d{2}$/.test(k) && dayKey(new Date(k + "T12:00:00")) === k;
-  if (!record(input) || input.version !== 1 || !record(input.domains)) fail();
+  if (
+    !record(input) ||
+    ![1, 2].includes(input.version) ||
+    !record(input.domains)
+  )
+    fail();
   const result = {
-    version: 1,
+    version: 2,
     settings: validateSettings(input.settings),
     domains: {},
   };
@@ -243,12 +294,80 @@ export function validateBackup(input) {
       configurable: true,
     });
   }
-  // A single focused tab cannot account for more than a full local day.
-  const totals = {};
-  for (const s of Object.values(result.domains))
-    for (const [d, v] of Object.entries(s.daily)) {
-      totals[d] = (totals[d] || 0) + v;
-      if (totals[d] > 90000) fail();
+  const summed = { totalSeconds: 0, daily: {}, hourly: {} };
+  for (const site of Object.values(result.domains)) {
+    summed.totalSeconds += site.totalSeconds;
+    for (const [day, value] of Object.entries(site.daily)) {
+      summed.daily[day] = (summed.daily[day] || 0) + value;
+      summed.hourly[day] ||= {};
+      for (const [hour, seconds] of Object.entries(site.hourly[day]))
+        summed.hourly[day][hour] = (summed.hourly[day][hour] || 0) + seconds;
     }
+  }
+  if (input.version === 1) {
+    if (Object.values(summed.daily).some((v) => v > 90000)) fail();
+    result.activity = summed;
+  } else {
+    const activity = input.activity;
+    if (
+      !record(activity) ||
+      !number(activity.totalSeconds) ||
+      !record(activity.daily) ||
+      !record(activity.hourly)
+    )
+      fail();
+    const clean = {
+      totalSeconds: activity.totalSeconds,
+      daily: {},
+      hourly: {},
+    };
+    let total = 0;
+    const days = new Set([
+      ...Object.keys(summed.daily),
+      ...Object.keys(activity.daily),
+      ...Object.keys(activity.hourly),
+    ]);
+    for (const day of days) {
+      const value = activity.daily[day];
+      if (
+        !date(day) ||
+        !number(value) ||
+        value > 90000 ||
+        !record(activity.hourly[day])
+      )
+        fail();
+      clean.daily[day] = value;
+      clean.hourly[day] = {};
+      let daily = 0;
+      const hours = new Set([
+        ...Object.keys(summed.hourly[day] || {}),
+        ...Object.keys(activity.hourly[day]),
+      ]);
+      for (const hour of hours) {
+        const seconds = activity.hourly[day][hour];
+        const upper = summed.hourly[day]?.[hour] || 0;
+        const lower = Math.max(
+          0,
+          ...Object.values(result.domains).map(
+            (site) => site.hourly[day]?.[hour] || 0,
+          ),
+        );
+        if (
+          !/^(?:[0-9]|1[0-9]|2[0-3])$/.test(hour) ||
+          !number(seconds) ||
+          seconds > 7200 ||
+          seconds > upper + 0.01 ||
+          seconds + 0.01 < lower
+        )
+          fail();
+        clean.hourly[day][hour] = seconds;
+        daily += seconds;
+      }
+      if (Math.abs(daily - value) > 0.01) fail();
+      total += value;
+    }
+    if (Math.abs(total - activity.totalSeconds) > 0.01) fail();
+    result.activity = clean;
+  }
   return result;
 }

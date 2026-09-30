@@ -41,6 +41,7 @@ const server = http.createServer((req, res) => {
   try {
     const page = await browser.newPage({
       viewport: { width: 1920, height: 1080 },
+      locale: "en-US",
     });
     const errors = [];
     page.on("pageerror", (e) => errors.push(e.message));

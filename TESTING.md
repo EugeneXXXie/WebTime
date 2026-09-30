@@ -13,24 +13,30 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for installation and browser prerequisite
 
 ## Local verification — 2026-09-30
 
-The WebTime source passed 8 core/event test groups, formatting, browser UI checks and a real Chrome extension smoke test on Windows. Browser checks used system Chrome selected with `CHROME_PATH`; branded README screenshots were regenerated and inspected. No test installs into the user's everyday browser profile.
+The 1.1 WebTime source passed 14 core/event/localization test groups, formatting, browser UI checks and a real Chrome extension smoke test on Windows. Browser checks used system Chrome selected with `CHROME_PATH`; branded README screenshots were regenerated and inspected. No test installs into the user's everyday browser profile.
+
+Localization checks cover all eight language catalogs and placeholders, regional locale matching, unsupported-language fallback, old-settings migration, backup validation, a Chinese system default in real Chrome, manual switching across open pages, confirmation dialogs and 390 px layouts. English UI regression tests explicitly select an English browser locale.
 
 The separately downloaded Playwright Chromium 153 binary failed to launch on this machine with `spawn UNKNOWN`, before an extension was loaded. The cause has not been established. The default downloaded-browser path and Linux CI have not been verified successfully here; the CI workflow must receive its first remote run after publication. This does not invalidate the successful system-Chrome checks. If a downloaded browser cannot start on your machine, use `CHROME_PATH` to select a compatible installed browser and report the environment along with the launch error.
 
 Screenshots are generated into ignored `tests/artifacts/`. Public README screenshots are curated copies in `docs/images/`, generated with `?demo` and synthetic statistics. To refresh them, run `npm run test:ui`, inspect the images, and copy `today-dark.png`, `settings-light.png` and `popup.png` to the corresponding public screenshot names. Do not copy images of real usage data.
 
+## Open-tab accounting regression checks (1.1.0)
+
+- Simulate 20 minutes with idle input, two windows and duplicate YouTube tabs: each distinct domain is 1,200 seconds; browser union is 1,200 seconds.
+- Verify closing one duplicate retains the domain, closing the last stops it, and locking pauses all domains.
+- Verify frozen/discarded/private/internal tabs are excluded, worker recovery is continuous and browser downtime is not backfilled.
+- Verify midnight splitting, v1→v2 backup migration and strict v2 round trips.
+- Real Chrome smoke tests use localhost and loopback hostnames, multiple background tabs and an extension page in front to verify per-domain deduplication and union totals.
+
 ## Manual acceptance
 
-Automated event mocks are not a substitute for testing OS focus and idle delivery on real hardware. Before a release:
+1. Leave a 20-minute YouTube video open without keyboard input; confirm its website time continues.
+2. Open another YouTube tab and GitHub. YouTube counts once, GitHub separately, browser total once.
+3. Switch to another application or leave tabs in the background. Loaded websites continue counting.
+4. Close one duplicate, then the final tab of a domain. That domain should stop only after the last closes.
+5. Lock/unlock and sleep/wake the computer. Lock pauses tracking; long unconfirmed sleep gaps are discarded conservatively.
+6. Verify browser restart, internal/private/frozen/discarded tabs, themes, keyboard navigation and backups.
+7. Check Today, 7/30 Days and website details. Website shares use website-time totals; the hero and activity charts use the union.
 
-1. Use YouTube actively for five minutes; compare with a stopwatch. Passive viewing pauses after the configured idle threshold.
-2. Switch to GitHub, then switch to another Windows/macOS/Linux application. Only the focused browser should accumulate time.
-3. Wait past the idle threshold, then resume input. Verify paused/live state and new session behavior.
-4. Switch between two browser windows and several same-domain URLs. Confirm no double counting and correct normalization.
-5. Visit an internal browser page. Confirm no website time is added.
-6. Restart the browser and verify history survives without counting the closed interval. Test worker termination separately, with DevTools closed during normal observation.
-7. Check actual favicons and unavailable-icon fallback; dark/light/system themes; keyboard navigation; full/reduced/off motion.
-8. Export a synthetic dataset, import it, reject an invalid backup, cancel clearing, then confirm clearing. Never use private backups in public reports.
-9. Check Today, 7 Days, 30 Days, website search/sort/detail and a realtime update. Confirm the core Today sections fit 1920×1080 and smaller windows do not overflow horizontally.
-
-Real five-minute YouTube use, operating-system app switching, prolonged idle, physical sleep and user-profile browser restart have **not** been claimed as manually exercised by the automated suite. Sleep, abnormal termination, quota limits and clock changes have documented conservative accounting limits in the README.
+The 20-minute interval is tested with a simulated clock, not claimed as a physical 20-minute viewing session. Real OS lock/sleep delivery and user-profile browser restart still require desktop acceptance. Close unused tabs: passive open pages count whether or not you are watching them.

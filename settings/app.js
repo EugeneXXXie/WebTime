@@ -5,17 +5,20 @@ import {
   applyAppearance,
   errorMessage,
   isDemo,
+  localize,
+  onSettingsChanged,
 } from "../shared/ui.js";
 let settings,
   pending = null;
 function showSettings(s) {
   settings = s;
   applyAppearance(s);
-  for (const key of ["theme", "animation", "idleThreshold"])
-    $("#" + key).value = s[key];
+  for (const key of ["theme", "animation", "language"])
+    $("#" + key).value = s[key] ?? "system";
 }
 function notice(text) {
   $("#notice").textContent = text;
+  localize();
 }
 async function initialize() {
   try {
@@ -24,14 +27,13 @@ async function initialize() {
     errorMessage(error);
   }
 }
-for (const key of ["theme", "animation", "idleThreshold"])
+for (const key of ["theme", "animation", "language"])
   $("#" + key).addEventListener("change", async (e) => {
     e.target.disabled = true;
     try {
       const next = {
         ...settings,
-        [key]:
-          key === "idleThreshold" ? Number(e.target.value) : e.target.value,
+        [key]: e.target.value,
       };
       const snap = await request("settings", { settings: next });
       showSettings(snap.data.settings);
@@ -71,6 +73,7 @@ function confirm(action, data) {
     action === "clear" ? "Clear data" : "Replace data";
   $("#confirm").returnValue = "";
   $("#confirm").showModal();
+  localize();
 }
 $("#clear").addEventListener("click", () => confirm("clear"));
 $("#import").addEventListener("click", () => $("#file").click());
@@ -80,7 +83,15 @@ $("#file").addEventListener("change", async (e) => {
     if (!file) return;
     if (file.size > 8 * 1024 * 1024)
       throw Error("Backup exceeds the 8 MB import limit.");
-    confirm("import", validateBackup(JSON.parse(await file.text())));
+    let parsed;
+    try {
+      parsed = JSON.parse(await file.text());
+    } catch {
+      throw Error(
+        "Unable to read backup. Check that it is a valid WebTime JSON file.",
+      );
+    }
+    confirm("import", validateBackup(parsed));
   } catch (error) {
     notice(error.message);
   } finally {
@@ -108,3 +119,5 @@ if (isDemo) {
   notice("Demo preview. Changes here do not affect extension data.");
 }
 await initialize();
+addEventListener("webtime-languagechange", () => showSettings(settings));
+onSettingsChanged(showSettings);

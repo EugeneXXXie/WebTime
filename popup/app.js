@@ -11,6 +11,8 @@ import {
   errorMessage,
   isExtension,
   isDemo,
+  localize,
+  onSettingsChanged,
 } from "../shared/ui.js";
 let snapshot;
 function openDashboard(hash = "today") {
@@ -36,6 +38,7 @@ async function refresh(initial = false) {
         )
         .join("") ||
       '<p class="empty">Your first session starts when you browse.<br>Everything stays on this device.</p>';
+    localize();
   } catch (error) {
     errorMessage(error);
   }
@@ -58,5 +61,10 @@ $("#theme").addEventListener("change", async (e) => {
 await refresh(true);
 setInterval(() => refresh(), 5000);
 setInterval(() => {
-  if (snapshot) $("#live").innerHTML = liveMarkup(snapshot.live);
+  if (snapshot) {
+    $("#live").innerHTML = liveMarkup(snapshot.live);
+    localize($("#live"));
+  }
 }, 1000);
+addEventListener("webtime-languagechange", () => refresh());
+onSettingsChanged(() => refresh());
