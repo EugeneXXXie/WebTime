@@ -178,6 +178,77 @@ test("open-tab tracking: twenty idle minutes, concurrent domains, deduplication,
     await send({ type: "clear" });
     assert.deepEqual(local.store.data.domains, {});
     assert.equal(local.store.data.activity.totalSeconds, 0);
+    // Blocking is a filter on the existing concurrent tracker, not a reset.
+    const localHosts = [
+      "192.168.0.6",
+      "192.168.1.1",
+      "10.0.0.1",
+      "172.16.0.1",
+      "127.0.0.1",
+      "localhost",
+      "[::1]",
+      "[fc00::1]",
+      "[fe80::1]",
+    ];
+    const publicHosts = ["youtube.com", "github.com", "bilibili.com"];
+    tabs = [...localHosts, ...publicHosts].map((host, id) => ({
+      id,
+      windowId: 1,
+      url: `http://${host}/`,
+    }));
+    const setting = async (enabled) => {
+      const response = await send({
+        type: "settings",
+        settings: { ...(await snap()).data.settings, blockLocalIPs: enabled },
+      });
+      assert(response.ok, response.error);
+      return response.result;
+    };
+    result = await setting(true);
+    const started = result.live.domains.find(
+      (d) => d.domain === "youtube.com",
+    ).started;
+    now += 20000;
+    result = await snap();
+    assert.deepEqual(
+      Object.keys(result.data.domains).sort(),
+      publicHosts.sort(),
+    );
+    assert.equal(result.data.activity.totalSeconds, 20);
+    await setting(false);
+    now += 20000;
+    result = await snap();
+    for (const host of localHosts)
+      assert.equal(result.data.domains[host].totalSeconds, 20, host);
+    const history = structuredClone(result.data.domains["192.168.0.6"]);
+    await setting(true);
+    now += 20000;
+    result = await snap();
+    assert.deepEqual(result.data.domains["192.168.0.6"], history);
+    assert.equal(
+      result.live.domains.find((d) => d.domain === "youtube.com").started,
+      started,
+    );
+    for (const host of publicHosts)
+      assert.equal(result.data.domains[host].totalSeconds, 60);
+    // Navigate the only open tab: public -> local -> public.
+    tabs = [{ id: 1, windowId: 1, url: "https://youtube.com/" }];
+    await chrome.tabs.onUpdated.emit(1, { url: tabs[0].url });
+    now += 20000;
+    await snap();
+    tabs[0].url = "http://192.168.0.6/";
+    await chrome.tabs.onUpdated.emit(1, { url: tabs[0].url });
+    const stopped = (await snap()).data.activity.totalSeconds;
+    now += 20000;
+    result = await snap();
+    assert.equal(result.live.status, "inactive");
+    assert.equal(result.data.activity.totalSeconds, stopped);
+    assert.deepEqual(result.data.domains["192.168.0.6"], history);
+    tabs[0].url = "https://youtube.com/";
+    await chrome.tabs.onUpdated.emit(1, { url: tabs[0].url });
+    now += 20000;
+    result = await snap();
+    assert.equal(result.data.activity.totalSeconds, stopped + 20);
   } finally {
     Date.now = realNow;
     globalThis.setInterval = realInterval;

@@ -1,5 +1,7 @@
 // English source text is the message key. Columns: zh, ja, ko, de, it, ru, es.
 const rows = `
+Block Local IPs|屏蔽本地 IP|ローカルIPを除外|로컬 IP 제외|Lokale IPs ausschließen|Escludi IP locali|Исключать локальные IP|Excluir IP locales
+Exclude local and private addresses from future tracking. Existing history is kept.|不再统计本地和私有地址，已有历史记录保持不变。|ローカル・プライベートアドレスを今後の計測から除外します。履歴は保持されます。|로컬 및 사설 주소를 앞으로 측정하지 않습니다. 기존 기록은 유지됩니다.|Lokale und private Adressen künftig nicht erfassen. Bestehende Daten bleiben erhalten.|Escludi gli indirizzi locali e privati dal conteggio futuro. La cronologia viene conservata.|Не учитывать локальные и частные адреса в дальнейшем. История сохраняется.|Excluye las direcciones locales y privadas del registro futuro. Se conserva el historial.
 Invalid or incompatible WebTime backup. Your data has not been changed.|WebTime 备份无效或不兼容，你的数据未被更改。|無効または非対応のWebTimeバックアップです。データは変更されていません。|잘못되었거나 호환되지 않는 WebTime 백업입니다. 데이터는 변경되지 않았습니다.|Ungültige oder inkompatible WebTime-Sicherung. Deine Daten bleiben unverändert.|Backup WebTime non valido o incompatibile. I tuoi dati non sono stati modificati.|Некорректная или несовместимая копия WebTime. Данные не изменены.|Copia de WebTime no válida o incompatible. Tus datos no se han modificado.
 Settings|设置|設定|설정|Einstellungen|Impostazioni|Настройки|Ajustes
 Language|语言|言語|언어|Sprache|Lingua|Язык|Idioma

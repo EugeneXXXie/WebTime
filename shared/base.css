@@ -190,6 +190,9 @@ h2,
   font-weight: 600;
   color: var(--muted);
 }
+.favicon:has(img) .favicon-letter {
+  visibility: hidden;
+}
 .status {
   font-size: 10px;
   letter-spacing: 0.13em;

@@ -3,6 +3,7 @@ export const DEFAULT_SETTINGS = {
   theme: "dark",
   animation: "full",
   language: "system",
+  blockLocalIPs: false,
 };
 export const freshData = () => ({
   version: 2,
@@ -22,6 +23,36 @@ export function normalizeDomain(url) {
   } catch {
     return null;
   }
+}
+// Receives the URL parser's normalized hostname; never resolves DNS names.
+export function isLocalDomain(domain) {
+  if (domain === "localhost") return true;
+  if (!domain) return false;
+  const host = domain.replace(/^\[|\]$/g, "");
+  if (host === "::1") return true;
+  if (host.includes(":")) {
+    const first = parseInt(host.split(":")[0], 16);
+    if ((first & 0xfe00) === 0xfc00 || (first & 0xffc0) === 0xfe80) return true;
+    // URL canonicalizes IPv4-mapped IPv6 to two hexadecimal groups.
+    const mapped = host.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i);
+    if (!mapped) return false;
+    const high = parseInt(mapped[1], 16),
+      low = parseInt(mapped[2], 16);
+    return isLocalDomain(
+      `${high >>> 8}.${high & 255}.${low >>> 8}.${low & 255}`,
+    );
+  }
+  if (!/^\d+\.\d+\.\d+\.\d+$/.test(host)) return false;
+  const octets = host.split(".").map(Number);
+  if (octets.some((n) => n > 255)) return false;
+  const [a, b] = octets;
+  return (
+    a === 127 ||
+    a === 10 ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 169 && b === 254)
+  );
 }
 export function dayKey(time = Date.now()) {
   const d = new Date(time);
@@ -189,6 +220,7 @@ export function validateSettings(s) {
     !s ||
     !["dark", "light", "system"].includes(s.theme) ||
     !["full", "reduced", "off"].includes(s.animation) ||
+    (s.blockLocalIPs !== undefined && typeof s.blockLocalIPs !== "boolean") ||
     (s.language !== undefined &&
       !["system", "en", "zh", "ja", "ko", "de", "it", "ru", "es"].includes(
         s.language,
@@ -199,6 +231,7 @@ export function validateSettings(s) {
     theme: s.theme,
     animation: s.animation,
     language: s.language ?? "system",
+    blockLocalIPs: s.blockLocalIPs ?? false,
   };
 }
 export function validateBackup(input) {

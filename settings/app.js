@@ -13,6 +13,7 @@ let settings,
 function showSettings(s) {
   settings = s;
   applyAppearance(s);
+  $("#blockLocalIPs").checked = s.blockLocalIPs ?? false;
   for (const key of ["theme", "animation", "language"])
     $("#" + key).value = s[key] ?? "system";
 }
@@ -27,13 +28,13 @@ async function initialize() {
     errorMessage(error);
   }
 }
-for (const key of ["theme", "animation", "language"])
+for (const key of ["theme", "animation", "language", "blockLocalIPs"])
   $("#" + key).addEventListener("change", async (e) => {
     e.target.disabled = true;
     try {
       const next = {
         ...settings,
-        [key]: e.target.value,
+        [key]: key === "blockLocalIPs" ? e.target.checked : e.target.value,
       };
       const snap = await request("settings", { settings: next });
       showSettings(snap.data.settings);

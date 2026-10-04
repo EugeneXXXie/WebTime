@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### 1.2.0
+
+- Fix detail-page favicon sizing and centering, and hide letter placeholders while favicon images are present.
+- Open website detail titles in a new tab using the current domain and HTTPS.
+- Add Block Local IPs, disabled by default, with immediate IPv4/IPv6 filtering and preserved historical data.
+- Refresh README screenshots with native Chrome favicons and synthetic statistics.
+- Add regression coverage for address boundaries, settings persistence, live filtering, image proportions and new-tab links.
+
 ### 1.1.0
 
 - Add eight interface languages with system-language detection, a saved manual override, localized dates/time units, and live settings synchronization across open extension pages.

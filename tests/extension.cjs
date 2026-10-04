@@ -119,6 +119,37 @@ const server = require("node:http").createServer((_req, res) => {
         ) < 0.05,
         "Each domain counts once, even with duplicate background tabs",
       );
+    await page.goto(`chrome-extension://${loaded.id}/settings/index.html`);
+    assert.equal(await page.locator("#blockLocalIPs").isChecked(), false);
+    await page.locator("#blockLocalIPs").check();
+    await page.waitForFunction(
+      async () =>
+        (await chrome.runtime.sendMessage({ type: "snapshot" })).result.data
+          .settings.blockLocalIPs === true,
+    );
+    const blocked = await snapshotNow();
+    assert.equal(blocked.live.status, "inactive");
+    await page.waitForTimeout(1100);
+    assert.deepEqual((await snapshotNow()).data.domains, blocked.data.domains);
+    assert.equal(
+      (await snapshotNow()).data.activity.totalSeconds,
+      blocked.data.activity.totalSeconds,
+    );
+    await page.reload();
+    await page.waitForFunction(
+      () => document.querySelector("#blockLocalIPs").checked,
+    );
+    await page.locator("#blockLocalIPs").uncheck();
+    await page.waitForFunction(
+      async () =>
+        (await chrome.runtime.sendMessage({ type: "snapshot" })).result.live
+          .domains?.length === 2,
+    );
+    await page.waitForTimeout(1100);
+    assert(
+      (await snapshotNow()).data.activity.totalSeconds >
+        blocked.data.activity.totalSeconds,
+    );
     await one.close();
     await duplicate.close();
     const closed = await snapshotNow();
@@ -160,6 +191,71 @@ const server = require("node:http").createServer((_req, res) => {
       translatedFixture,
     );
     const dashboard = await browser.newPage();
+    await dashboard.goto(
+      `chrome-extension://${loaded.id}/dashboard/index.html`,
+    );
+    await dashboard.locator("#hero-number").waitFor();
+    // Exercise native new-tab links without reaching external websites.
+    for (const domain of ["youtube.com", "github.com"]) {
+      const target = `https://${domain}/`;
+      await browser.route(target, (route) =>
+        route.fulfill({
+          contentType: "text/html",
+          body: "<title>Test destination</title>",
+        }),
+      );
+      await dashboard.goto(
+        `chrome-extension://${loaded.id}/dashboard/index.html#detail/${domain}`,
+      );
+      const title = dashboard.locator(".detail-title");
+      await title.waitFor();
+      const img = title.locator("img");
+      for (const [width, height] of [
+        [16, 16],
+        [64, 32],
+        [16, 64],
+      ]) {
+        await img.evaluate(
+          (img, { width, height }) => {
+            img.src =
+              "data:image/svg+xml," +
+              encodeURIComponent(
+                `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="100%" height="100%" fill="red"/></svg>`,
+              );
+          },
+          { width, height },
+        );
+        await img.evaluate((img) => img.decode());
+        const geometry = await img.evaluate((img) => {
+          const a = img.getBoundingClientRect(),
+            b = img.parentElement.getBoundingClientRect();
+          return {
+            width: a.width,
+            height: a.height,
+            dx: a.x + a.width / 2 - b.x - b.width / 2,
+            dy: a.y + a.height / 2 - b.y - b.height / 2,
+            fit: getComputedStyle(img).objectFit,
+            overflow: getComputedStyle(img.parentElement).overflow,
+          };
+        });
+        assert.equal(geometry.width, 40);
+        assert.equal(geometry.height, 40);
+        assert(Math.abs(geometry.dx) < 0.1 && Math.abs(geometry.dy) < 0.1);
+        assert.equal(geometry.fit, "contain");
+        assert.equal(geometry.overflow, "hidden");
+      }
+      assert.equal(
+        await title.evaluate((el) => getComputedStyle(el).cursor),
+        "pointer",
+      );
+      const originalURL = dashboard.url();
+      const openedPromise = browser.waitForEvent("page");
+      await title.click();
+      const opened = await openedPromise;
+      await opened.waitForURL(target);
+      assert.equal(dashboard.url(), originalURL);
+      await opened.close();
+    }
     await dashboard.goto(
       `chrome-extension://${loaded.id}/dashboard/index.html`,
     );

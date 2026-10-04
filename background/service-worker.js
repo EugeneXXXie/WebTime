@@ -1,6 +1,7 @@
 import {
   Tracker,
   normalizeDomain,
+  isLocalDomain,
   freshData,
   validateBackup,
   validateSettings,
@@ -43,7 +44,11 @@ async function active() {
       !tab.frozen &&
       normalizeDomain(tab.url),
   );
-  const domains = [...new Set(tabs.map((tab) => normalizeDomain(tab.url)))];
+  const domains = [
+    ...new Set(tabs.map((tab) => normalizeDomain(tab.url))),
+  ].filter(
+    (domain) => !tracker.data.settings.blockLocalIPs || !isLocalDomain(domain),
+  );
   return { domains, status: "inactive" };
 }
 async function reconcile(force = false) {
