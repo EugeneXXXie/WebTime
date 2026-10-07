@@ -92,7 +92,10 @@ $("#file").addEventListener("change", async (e) => {
         "Unable to read backup. Check that it is a valid WebTime JSON file.",
       );
     }
-    confirm("import", validateBackup(parsed));
+    // Preflight here, but keep the original schema on the wire. An already
+    // running older worker may outlive newly opened UI modules after an update.
+    validateBackup(parsed);
+    confirm("import", parsed);
   } catch (error) {
     notice(error.message);
   } finally {

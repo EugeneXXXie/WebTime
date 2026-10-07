@@ -29,6 +29,17 @@ Screenshots are generated into ignored `tests/artifacts/`. Public README screens
 - Verify midnight splitting, v1→v2 backup migration and strict v2 round trips.
 - Real Chrome smoke tests use localhost and loopback hostnames, multiple background tabs and an extension page in front to verify per-domain deduplication and union totals.
 
+## Main-domain accounting regression checks (1.2.1)
+
+Verified on Windows with system Chrome on 2026-10-07: all 24 unit/event tests, both browser suites and formatting passed. English and Chinese grouped-chart screenshots were rendered and inspected using synthetic fixtures in an isolated extension profile. The new grouped panels were checked in all eight languages at 390 px width. Code review also identified and verified a fix for backup metadata after backward clock changes.
+
+- Simulate 20 minutes with Bilibili and Google subdomains: each main domain counts 1,200 seconds, each child retains 1,200 seconds, and browser union remains 1,200 seconds.
+- Cover multi-part ICANN suffixes, wildcard and exception rules (including `www.ck`), shared hosting, IP addresses and prototype-name hosts.
+- Verify child closing/switching, midnight splitting, main-domain session continuity and worker checkpoint upgrades.
+- Verify version-1/2 migration, unchanged old browser totals, labeled possible historical overlaps, version-3 round trips and rejection of missing/forged group records.
+- Real Chrome opens two synthetic subdomain tabs and verifies both child clocks against one main-domain clock and browser union. UI checks cover default collapse, keyboard expansion, preserved focus/expansion after refresh, child search/detail routes, narrow screens and historical import/export.
+- Backup UI regression checks export a JSON file through Settings, select that exact file, confirm replacement and compare every saved field after real MV3 import/re-export. Invalid files are rejected before confirmation and preserve existing data. A separate UI case simulates a still-running version-2 worker and verifies that page preflight validation keeps the original backup schema for the worker to migrate.
+
 ## Manual acceptance
 
 1. Leave a 20-minute YouTube video open without keyboard input; confirm its website time continues.
@@ -38,5 +49,6 @@ Screenshots are generated into ignored `tests/artifacts/`. Public README screens
 5. Lock/unlock and sleep/wake the computer. Lock pauses tracking; long unconfirmed sleep gaps are discarded conservatively.
 6. Verify browser restart, internal/private/frozen/discarded tabs, themes, keyboard navigation and backups.
 7. Check Today, 7/30 Days and website details. Website shares use website-time totals; the hero and activity charts use the union.
+8. Open `www.bilibili.com` and `space.bilibili.com` together. Confirm one Bilibili row; expand it to see both hostname durations. Main-domain time counts once, and child sums may overlap. Google Search and Gmail also share one main-domain clock.
 
 The 20-minute interval is tested with a simulated clock, not claimed as a physical 20-minute viewing session. Real OS lock/sleep delivery and user-profile browser restart still require desktop acceptance. Close unused tabs: passive open pages count whether or not you are watching them.

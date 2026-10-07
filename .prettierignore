@@ -2,3 +2,4 @@ node_modules/
 tests/artifacts/
 dist/
 package-lock.json
+vendor/tldts/index.esm.min.js

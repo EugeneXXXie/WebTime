@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### 1.2.1
+
+- Merge all subdomains by registrable main domain using bundled offline public-suffix rules.
+- Deduplicate overlapping subdomain intervals while preserving individual hostname durations and the browser union total.
+- Add collapsed website rows with expandable domain-duration charts, child search and group/hostname detail views.
+- Migrate version-1/2 histories and backups to version 3; preserve old data and label historical sums that may contain overlaps.
+- Localize grouping controls and explanations in all eight interface languages.
+- Preserve a backup's original format between settings-page validation and worker import, preventing false incompatibility errors during extension updates.
+
 ### 1.2.0
 
 - Fix detail-page favicon sizing and centering, and hide letter placeholders while favicon images are present.

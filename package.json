@@ -1,12 +1,12 @@
 {
   "name": "webtime",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "A private, local-only browser screen time tracker.",
   "license": "MIT",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test tests/core.test.js tests/concurrent.test.js tests/worker.test.js tests/i18n.test.js tests/local-ips.test.js",
+    "test": "node --test tests/core.test.js tests/concurrent.test.js tests/worker.test.js tests/i18n.test.js tests/local-ips.test.js tests/groups.test.js",
     "test:ui": "node tests/browser.cjs",
     "test:extension": "node tests/extension.cjs",
     "format": "prettier --write .",

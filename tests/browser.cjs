@@ -166,6 +166,87 @@ const server = http.createServer((req, res) => {
         document.querySelector("#notice").textContent ===
         "All recorded data cleared.",
     );
+    // A newly opened settings page can coexist with an older MV3 worker until
+    // the extension is reloaded. Validation must not rewrite the wire schema.
+    const { freshData, addInterval } = await import("../tracking/core.js");
+    const legacy = freshData();
+    legacy.settings.language = "en";
+    const began = new Date(2026, 9, 7, 12).getTime();
+    addInterval(legacy, "github.com", began, began + 60000, true);
+    addInterval(legacy, "api.github.com", began, began + 60000, true, false);
+    legacy.version = 2;
+    delete legacy.groups;
+    const compatible = await browser.newPage();
+    compatible.on("pageerror", (error) => errors.push(error.message));
+    await compatible.addInitScript((initial) => {
+      let stored = initial;
+      window.backupImports = [];
+      window.chrome = {
+        storage: { onChanged: { addListener() {} } },
+        runtime: {
+          id: "legacy-backup-test",
+          async sendMessage(message) {
+            if (message.type === "import") {
+              window.backupImports.push(message.data);
+              if (message.data.version !== 2)
+                return {
+                  ok: false,
+                  error:
+                    "Invalid or incompatible WebTime backup. Your data has not been changed.",
+                };
+              stored = message.data;
+            }
+            return {
+              ok: true,
+              result:
+                message.type === "export"
+                  ? structuredClone(stored)
+                  : {
+                      data: structuredClone(stored),
+                      live: { status: "inactive" },
+                    },
+            };
+          },
+        },
+      };
+    }, legacy);
+    await compatible.goto(base + "/settings/index.html");
+    const legacyDownload = compatible.waitForEvent("download");
+    await compatible.locator("#export").click();
+    const exportedLegacy = await legacyDownload;
+    await compatible
+      .locator("#file")
+      .setInputFiles(await exportedLegacy.path());
+    await compatible.locator("dialog[open]").waitFor();
+    await compatible.locator("#confirm-action").click();
+    await compatible.waitForFunction(() => window.backupImports.length > 0);
+    assert.equal(
+      await compatible.evaluate(() => window.backupImports[0].version),
+      2,
+      "Settings must send the original supported backup version to the worker",
+    );
+    await compatible.waitForFunction(
+      () =>
+        document.querySelector("#notice").textContent === "Backup restored.",
+    );
+    assert.deepEqual(
+      await compatible.evaluate(() => window.backupImports[0]),
+      legacy,
+    );
+    await compatible.locator("#file").setInputFiles({
+      name: "invalid.json",
+      mimeType: "application/json",
+      buffer: Buffer.from('{"version":999}'),
+    });
+    await compatible.waitForFunction(() =>
+      document.querySelector("#notice").textContent.includes("Invalid"),
+    );
+    assert.equal(
+      await compatible.evaluate(() => window.backupImports.length),
+      1,
+      "Invalid files must fail before any write request reaches the worker",
+    );
+    await compatible.close();
     for (const [width, height] of [
       [1280, 720],
       [2560, 1440],

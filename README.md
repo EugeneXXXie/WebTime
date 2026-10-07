@@ -4,7 +4,7 @@
 
 English · [简体中文](README.zh-CN.md)
 
-WebTime is a local-only browser screen time tracker for Chrome and Chromium browsers. A calm dashboard, useful detail, and no accounts, servers or telemetry. Built with Manifest V3 and vanilla JavaScript, HTML and CSS — **zero runtime dependencies, no build step**.
+WebTime is a local-only browser screen time tracker for Chrome and Chromium browsers. A calm dashboard, useful detail, and no accounts, servers or telemetry. Built with Manifest V3 and vanilla JavaScript, HTML and CSS — **no build step or package installation required**. Main-domain detection uses a bundled offline library.
 
 ![WebTime Today dashboard with synthetic demo data](docs/images/dashboard-dark.png)
 
@@ -24,6 +24,7 @@ Screenshots are rendered in a real browser using synthetic demo data, not anyone
 - **Today at a glance:** total time, change from yesterday, hourly activity, top websites, usage shares and the last seven days.
 - **7- and 30-day views:** daily averages, trends, website totals and an hourly browser-rhythm heatmap.
 - **Website details:** searchable, sortable history with per-domain daily activity.
+- **Merged subdomains:** one clock per main domain, with collapsed rows that expand into individual domain-duration charts.
 - **Focused popup:** today's total, live state and top websites.
 - **Dark, light and system themes**, keyboard access and reduced/off motion preferences.
 - **Eight interface languages:** Chinese, English, Japanese, Korean, German, Italian, Russian and Spanish. Language defaults to **System** (Chrome's preferred languages), with a manual override in Settings. Unsupported preferences fall back to English. Dates and time units follow the selected language; website names stay unchanged.
@@ -40,7 +41,9 @@ Chrome/Chromium 132+ is required. No npm install is needed for normal use. New i
 
 ### Updating from ScreenTime
 
-Reload the extension at the same path with the same extension ID. Existing storage keys are unchanged. Version-1 histories and backups migrate automatically to version 2; old ScreenTime JSON backups remain importable. Version-2 exports require WebTime 1.1.0 or newer. New exports use `webtime-backup-YYYY-MM-DD.json`.
+Reload the extension at the same path with the same extension ID. Existing storage keys are unchanged. Version-1 and version-2 histories/backups migrate automatically to version 3; old ScreenTime JSON backups remain importable. Version-3 exports require WebTime 1.2.1 or newer. New exports use `webtime-backup-YYYY-MM-DD.json`.
+
+Old version-2 subdomain totals are summed and labeled when they may contain overlaps: old versions stored aggregate buckets, so historical overlaps cannot be recovered accurately. Browser totals and individual hostname histories remain unchanged. New main-domain intervals are deduplicated.
 
 If you move the installation or change extension ID, export a backup first and import it into the new installation. Keep the folder name unchanged while testing an existing unpacked installation.
 
@@ -48,11 +51,13 @@ If you move the installation or change extension ID, export a backup first and i
 
 Time is recorded for **all open, loaded HTTP(S) tabs in normal browser windows**, including background tabs and unfocused/minimized windows. Keyboard inactivity does not pause tracking. Private tabs, internal pages, discarded/frozen tabs and OS-locked time are excluded.
 
-**One domain, one clock.** Two YouTube tabs open for 20 minutes count as 20 minutes of YouTube. YouTube and GitHub open together for 20 minutes each show 20 minutes, while total browser time remains 20 minutes. The main total and activity charts count the union of these intervals. Website percentages and the ring use the sum of website times, so their shares add up to 100%; this sum may exceed total browser time.
+**One main domain, one clock.** `bilibili.com` and `space.bilibili.com` open together for 20 minutes count as 20 minutes of Bilibili. Google Search, Gmail and Google Docs all belong to `google.com`. YouTube and GitHub open together for 20 minutes each show 20 minutes, while total browser time remains 20 minutes. The main total and activity charts count the union of these intervals. Website percentages and the ring use the sum of main-domain times, so their shares add up to 100%; this sum may exceed total browser time.
+
+Website rows are collapsed by default. Click a merged row to see hostname durations and bars, then open the group's or a hostname's detail page. Search also finds child hostnames. Child times can overlap and therefore may add up to more than the main-domain total.
 
 There is no idle threshold or media-playback detection. A paused video or unread background tab continues counting while it remains loaded. Close tabs you no longer want to count. WebTime measures open-website time, not attention or verified playback.
 
-Hostnames are normalized by removing `www.`; other subdomains and country domains remain separate. Intervals are split into local calendar-day and hour buckets. A domain session continues while at least one eligible tab for that domain remains open. Existing history is not rebucketed after a timezone change.
+Hostnames are normalized by removing `www.` and grouped using the bundled ICANN Public Suffix List, including multi-part suffixes such as `co.uk` and `com.cn`. All subdomains of a registrable domain are merged, including shared hosting; private-suffix exceptions are not used. Country domains such as `google.com` and `google.co.jp` remain separate. IP addresses and single-label hosts remain separate. Intervals are split into local calendar-day and hour buckets. A main-domain session continues while at least one eligible tab for any of its hostnames remains open. Existing history is not rebucketed after a timezone change.
 
 **Accuracy limits:** Chrome may delay background alarms or terminate its worker. WebTime checkpoints about every 20 seconds while running and uses a 30-second alarm fallback. Gaps longer than 45 seconds and backwards clock changes are discarded conservatively. Crashes or heavy background throttling can lose unconfirmed time; sleeping/closed time is not deliberately backfilled. It is not a billing-grade stopwatch.
 
@@ -104,6 +109,7 @@ dashboard/      Views and custom SVG charts
 popup/          Toolbar popup
 settings/       Preferences and backup controls
 assets/         Local extension icons
+vendor/         Bundled offline domain parser and license
 tests/          Core, browser and extension checks
 docs/           Architecture and public demo screenshots
 ```
@@ -112,4 +118,4 @@ docs/           Architecture and public demo screenshots
 
 ## License
 
-[MIT](LICENSE) © 2026 WebTime contributors.
+[MIT](LICENSE) © 2026 WebTime contributors. Bundled [tldts](vendor/tldts/README.md) retains its own license and Public Suffix List attribution.

@@ -198,6 +198,94 @@ main {
 .site-row + .site-row {
   border-top: 1px solid var(--line);
 }
+.site-group + .site-group {
+  border-top: 1px solid var(--line);
+}
+.site-info small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.child-count {
+  margin-left: 8px;
+  font-size: 10px;
+  color: var(--accent);
+}
+.row-arrow.disclosure {
+  opacity: 1;
+  font-size: 18px;
+}
+.subdomain-chart {
+  margin: 6px 8px 16px 47px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.subdomain-chart[hidden] {
+  display: none;
+}
+.subdomain-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.subdomain-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  width: 100%;
+  padding: 10px 4px;
+  border-radius: 4px;
+  text-align: left;
+  font-size: 12px;
+}
+.subdomain-row:hover,
+.subdomain-row:focus-visible {
+  background: var(--soft);
+}
+.subdomain-name {
+  overflow-wrap: anywhere;
+}
+.subdomain-time {
+  color: var(--muted);
+  white-space: nowrap;
+}
+.subdomain-bar {
+  grid-column: 1 / -1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface2);
+  overflow: hidden;
+}
+.subdomain-bar i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  opacity: 0.65;
+}
+.group-note {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.legacy-note {
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.detail-domains {
+  margin-bottom: 24px;
+}
+.detail-domains .subdomain-chart {
+  margin: 14px 0 0;
+  max-width: 800px;
+}
 .rank {
   font-size: 11px;
   color: var(--muted);

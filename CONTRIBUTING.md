@@ -4,7 +4,7 @@ Bug reports, reproducible test cases, documentation improvements and small focus
 
 ## Development
 
-Use Node.js 22+ and npm. No build step or production dependencies are required to load the extension.
+Use Node.js 22+ and npm. Loading the extension requires no build step or package installation; the offline domain parser is bundled.
 
 ```sh
 npm ci
@@ -30,10 +30,10 @@ Load the repository root through your browser's **Load unpacked** command. Reloa
 ## Before opening a pull request
 
 - Explain the problem, behavior change and tests performed.
-- Keep runtime dependencies at zero; prefer browser APIs and native HTML/CSS.
+- Prefer browser APIs and native HTML/CSS; keep the bundled domain parser offline and preserve its license.
 - Do not introduce network requests, telemetry or new permissions without discussion.
 - Add a regression test for tracking, storage or backup-validation changes.
-- Preserve version-1 backup compatibility, or document and test an explicit migration.
+- Preserve version-1/2 backup compatibility, or document and test an explicit migration.
 - Check light/dark themes, keyboard focus and reduced motion for UI changes.
 - Run `npm run format` and the relevant tests. Describe anything you could not test.
 - Use synthetic data in screenshots and reports. Never attach personal browsing backups.

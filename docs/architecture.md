@@ -1,12 +1,12 @@
 # Architecture
 
-WebTime is an unpacked Manifest V3 extension with no build pipeline and no runtime dependencies.
+WebTime is an unpacked Manifest V3 extension with no build pipeline or package-installation requirement. The offline tldts domain parser is bundled in `vendor/` with its license.
 
 ## Data flow
 
 Browser events → serialized service-worker queue → pure interval accounting → atomic local storage. UI pages request snapshots through extension messages; only the service worker writes production statistics.
 
-- `tracking/core.js` owns hostname normalization, local hour/day splitting, session accounting, summaries and strict version-2 backup validation and version-1 migration.
+- `tracking/core.js` owns hostname normalization, ICANN main-domain resolution, local hour/day splitting, session accounting, grouped summaries and strict version-3 backup validation with version-1/2 migration.
 - `background/service-worker.js` queries all normal-window tabs and OS lock state; coordinates events, settings changes and backup replacement.
 - `storage/storage.js` stores totals and their checkpoint in a single key. A session-only marker prevents browser-restart backfill.
 - `shared/ui.js` provides formatting, theme application, favicon fallback, tooltips and DOM-preserving refresh. Demo mode is isolated page memory.
@@ -18,6 +18,12 @@ Browser events → serialized service-worker queue → pure interval accounting 
 A 20-second timer is an optimization, not a guarantee. A 30-second alarm and browser events also reconcile state. Gaps exceeding 45 seconds are treated as unconfirmed rather than counted blindly. The checkpoint and totals are committed together. Successful imports replace the existing dataset; imports do not merge histories.
 
 Version 2 stores a separate `activity` bucket for the wall-clock union of website intervals. Each normalized domain is counted once even if multiple tabs are open. Domain times may overlap; global totals must not be derived by summing domains. Version-1 data is migrated by summing its historically exclusive intervals. Existing storage keys remain unchanged. Input inactivity and focus do not affect accounting. No content scripts or new permissions are needed.
+
+Version 3 retains `domains` for per-hostname durations and adds `groups` for the union within each registrable domain. The checkpoint stores raw `hosts` alongside main `domains`, with independent session continuity. Changing a child hostname preserves the main-domain session. Summaries and the popup use groups; child detail routes use raw hostname records. Group percentages use summed group time, while the hero and browser charts still use `activity`.
+
+Version-2 migration sums child histories and sets `legacyDaily` only on dates with multiple recorded children. Such dates are labeled because their past overlap cannot be reconstructed; browser history remains unchanged. Version-1 history was exclusive and needs no overlap label. Version-3 imports validate both tables, complete group membership and per-hour bounds against child records and browser activity. Hostname keys remain prototype safe.
+
+The bundled parser uses ICANN rules with private suffix handling disabled, so all subdomains of shared hosting registrable domains also merge. IP and single-label hosts remain independent. The parser never fetches rules or resolves DNS at runtime.
 
 ## Privacy boundary
 

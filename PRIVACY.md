@@ -4,7 +4,7 @@ WebTime has no server, account, analytics, telemetry or cloud sync. The extensio
 
 ## What is stored
 
-In `chrome.storage.local`: normalized hostnames, domain-derived display names, daily/hourly durations, session counts, last activity timestamps, settings and the current accounting checkpoint. `chrome.storage.session` holds a transient browser-session marker.
+In `chrome.storage.local`: normalized hostnames, main-domain groups, domain-derived display names, daily/hourly durations, session counts, last activity timestamps, settings and the current accounting checkpoint. Main-domain grouping uses a bundled offline suffix list, with no DNS or network requests. Individual hostname durations are retained for expandable charts. `chrome.storage.session` holds a transient browser-session marker.
 
 Open tabs' URLs are read to determine their hostnames. Full URLs, paths, query strings, page titles and page contents are not saved. Private/incognito tabs and non-HTTP(S) pages are excluded.
 

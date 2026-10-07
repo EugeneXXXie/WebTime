@@ -63,12 +63,48 @@ const server = require("node:http").createServer((_req, res) => {
     const { freshData, addInterval } = await import("../tracking/core.js");
     const fixture = freshData();
     fixture.settings.theme = "light";
+    fixture.settings.language = "en";
     addInterval(fixture, "github.com", Date.now() - 60000, Date.now(), true);
     const imported = await page.evaluate(
       (data) => chrome.runtime.sendMessage({ type: "import", data }),
       fixture,
     );
     assert(imported.ok);
+    // Exercise the actual file controls against the real MV3 worker, including
+    // an exported version-three file and an invalid file that must not write.
+    await page.reload();
+    const downloadPromise = page.waitForEvent("download");
+    await page.locator("#export").click();
+    const download = await downloadPromise;
+    const exported = JSON.parse(fs.readFileSync(await download.path(), "utf8"));
+    assert.deepEqual(exported, fixture);
+    await page.locator("#file").setInputFiles(await download.path());
+    await page.locator("dialog[open]").waitFor();
+    await page.locator("#confirm-action").click();
+    await page.waitForFunction(
+      () =>
+        document.querySelector("#notice").textContent === "Backup restored.",
+    );
+    const reexportedFixture = await page.evaluate(
+      async () => (await chrome.runtime.sendMessage({ type: "export" })).result,
+    );
+    assert.deepEqual(reexportedFixture, fixture);
+    await page.locator("#file").setInputFiles({
+      name: "invalid.json",
+      mimeType: "application/json",
+      buffer: Buffer.from('{"version":999}'),
+    });
+    await page.waitForFunction(() =>
+      document.querySelector("#notice").textContent.includes("Invalid"),
+    );
+    assert.equal(await page.locator("dialog[open]").count(), 0);
+    assert.deepEqual(
+      await page.evaluate(
+        async () =>
+          (await chrome.runtime.sendMessage({ type: "export" })).result,
+      ),
+      fixture,
+    );
     await page.goto(`chrome-extension://${loaded.id}/dashboard/index.html`);
     await page.waitForFunction(
       () => document.querySelector(".favicon img")?.naturalWidth > 0,
@@ -165,6 +201,55 @@ const server = require("node:http").createServer((_req, res) => {
     );
     await two.close();
     assert.equal((await snapshotNow()).live.status, "inactive");
+    await page.evaluate(() => chrome.runtime.sendMessage({ type: "clear" }));
+    await browser.route("http://*.example.test/**", (route) =>
+      route.fulfill({
+        contentType: "text/html",
+        body: "<title>Synthetic subdomain tab</title>",
+      }),
+    );
+    const alpha = await browser.newPage(),
+      beta = await browser.newPage();
+    await alpha.goto("http://alpha.example.test/one");
+    await beta.goto("http://beta.example.test/two");
+    await page.bringToFront();
+    const groupBefore = await snapshotNow();
+    assert.equal(groupBefore.live.domains.length, 1);
+    assert.equal(groupBefore.live.hosts.length, 2);
+    await page.waitForTimeout(1200);
+    const groupAfter = await snapshotNow();
+    const groupElapsed =
+      groupAfter.data.activity.totalSeconds -
+      groupBefore.data.activity.totalSeconds;
+    assert(groupElapsed >= 1);
+    for (const host of ["alpha.example.test", "beta.example.test"])
+      assert(
+        Math.abs(
+          (groupAfter.data.domains[host]?.totalSeconds || 0) -
+            (groupBefore.data.domains[host]?.totalSeconds || 0) -
+            groupElapsed,
+        ) < 0.05,
+      );
+    assert(
+      Math.abs(
+        (groupAfter.data.groups["example.test"]?.totalSeconds || 0) -
+          (groupBefore.data.groups["example.test"]?.totalSeconds || 0) -
+          groupElapsed,
+      ) < 0.05,
+    );
+    await pageCDP.send("ServiceWorker.stopAllWorkers");
+    const groupRecovered = await snapshotNow();
+    assert.equal(groupRecovered.live.domains.length, 1);
+    assert.equal(groupRecovered.live.hosts.length, 2);
+    assert.equal(
+      groupRecovered.data.groups["example.test"].sessions[
+        Object.keys(groupRecovered.data.groups["example.test"].sessions)[0]
+      ],
+      1,
+    );
+    await alpha.close();
+    await beta.close();
+    assert.equal((await snapshotNow()).live.status, "inactive");
     const labels = {
       zh: "设置",
       en: "Settings",
@@ -191,6 +276,177 @@ const server = require("node:http").createServer((_req, res) => {
       translatedFixture,
     );
     const dashboard = await browser.newPage();
+    dashboard.on("pageerror", (error) => errors.push(error.message));
+    dashboard.on("console", (message) => {
+      if (message.type() === "error") errors.push(message.text());
+    });
+    await dashboard.goto(
+      `chrome-extension://${loaded.id}/dashboard/index.html`,
+    );
+    await dashboard.locator("#hero-number").waitFor();
+    // Grouped statistics must use main-domain unions, with collapsed child charts.
+    const { Tracker } = await import("../tracking/core.js");
+    const groupedFixture = freshData();
+    groupedFixture.settings = {
+      ...groupedFixture.settings,
+      theme: "dark",
+      language: "en",
+      animation: "off",
+    };
+    const grouping = new Tracker(groupedFixture),
+      began = Date.now() - 1200000;
+    grouping.update(
+      ["github.com", "api.github.com", "bilibili.com", "space.bilibili.com"],
+      began,
+    );
+    for (let i = 1; i <= 60; i++)
+      grouping.update(
+        ["github.com", "api.github.com", "bilibili.com", "space.bilibili.com"],
+        began + i * 20000,
+      );
+    await page.evaluate(
+      (data) => chrome.runtime.sendMessage({ type: "import", data }),
+      groupedFixture,
+    );
+    await dashboard.reload();
+    await dashboard
+      .locator('[data-expand="github.com"]')
+      .waitFor({ timeout: 3000 });
+    assert.equal(await dashboard.locator(".site-row").count(), 2);
+    assert.equal(await dashboard.locator(".segment").count(), 2);
+    assert.equal(
+      await dashboard.locator(".subdomain-chart:visible").count(),
+      0,
+    );
+    const disclosure = dashboard.locator('[data-expand="github.com"]');
+    await disclosure.focus();
+    await dashboard.keyboard.press("Enter");
+    assert.equal(await disclosure.getAttribute("aria-expanded"), "true");
+    assert.equal(await dashboard.locator(".subdomain-row:visible").count(), 2);
+    assert.match(
+      await dashboard.locator(".subdomain-chart:visible").innerText(),
+      /api.github.com/,
+    );
+    await dashboard.waitForTimeout(5200);
+    assert.equal(
+      await disclosure.getAttribute("aria-expanded"),
+      "true",
+      "Refresh preserves expansion",
+    );
+    assert.equal(
+      await dashboard.evaluate(() => document.activeElement?.dataset.expand),
+      "github.com",
+    );
+    await dashboard.setViewportSize({ width: 390, height: 844 });
+    assert(
+      await dashboard.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth + 1,
+      ),
+    );
+    await dashboard
+      .locator('.subdomain-row[data-detail="api.github.com"]')
+      .click();
+    await dashboard.locator(".detail-title").waitFor();
+    assert.equal(
+      await dashboard.locator(".detail-title .muted").innerText(),
+      "api.github.com",
+    );
+    await dashboard.evaluate(() => (location.hash = "websites"));
+    await dashboard.locator("#search").fill("space.bilibili");
+    assert.equal(
+      await dashboard.locator(".site-row").count(),
+      1,
+      "Child search finds its main domain",
+    );
+    assert.equal(
+      await dashboard.locator(".subdomain-chart:visible").count(),
+      1,
+    );
+    await dashboard
+      .locator('.group-details[data-detail="bilibili.com"]')
+      .click();
+    await dashboard.locator(".detail-title").waitFor();
+    assert.equal(
+      await dashboard.locator(".detail-title .muted").innerText(),
+      "bilibili.com",
+    );
+    const oldGroupedFixture = structuredClone(groupedFixture);
+    oldGroupedFixture.version = 2;
+    delete oldGroupedFixture.groups;
+    await page.evaluate(
+      (data) => chrome.runtime.sendMessage({ type: "import", data }),
+      oldGroupedFixture,
+    );
+    await dashboard.reload();
+    await dashboard.locator(".legacy-note:visible").first().waitFor();
+    assert.equal((await snapshotNow()).data.activity.totalSeconds, 1200);
+    const reexported = await page.evaluate(
+      async () => (await chrome.runtime.sendMessage({ type: "export" })).result,
+    );
+    assert.equal(reexported.groups["github.com"].totalSeconds, 2400);
+    assert.equal(reexported.domains["api.github.com"].totalSeconds, 1200);
+    await page.evaluate(
+      (data) => chrome.runtime.sendMessage({ type: "import", data }),
+      groupedFixture,
+    );
+    await dashboard.reload();
+    await dashboard.evaluate(() => (location.hash = "today"));
+    const bili = dashboard.locator('[data-expand="bilibili.com"]');
+    if ((await bili.getAttribute("aria-expanded")) !== "true")
+      await bili.click();
+    await dashboard.mouse.move(0, 0);
+    await dashboard.setViewportSize({ width: 1280, height: 1080 });
+    fs.mkdirSync(path.join(root, "tests/artifacts"), { recursive: true });
+    await dashboard.screenshot({
+      path: path.join(root, "tests/artifacts/domain-groups.png"),
+      fullPage: true,
+    });
+    for (const lang of Object.keys(labels)) {
+      await page.evaluate(
+        ({ settings, lang }) =>
+          chrome.runtime.sendMessage({
+            type: "settings",
+            settings: { ...settings, language: lang },
+          }),
+        { settings: groupedFixture.settings, lang },
+      );
+      await dashboard.waitForFunction(
+        (lang) => document.documentElement.lang === lang,
+        lang,
+      );
+      if (lang !== "en") {
+        assert.notEqual(
+          await dashboard
+            .locator(".subdomain-chart:visible .subdomain-heading > span")
+            .first()
+            .innerText(),
+          "Domain details",
+        );
+        assert.notEqual(
+          await dashboard.locator(".child-count").first().innerText(),
+          "2 domains",
+        );
+      }
+      await dashboard.setViewportSize({ width: 390, height: 844 });
+      assert(
+        await dashboard.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth + 1,
+        ),
+        `Grouped chart overflow: ${lang}`,
+      );
+      if (lang === "zh") {
+        await dashboard.setViewportSize({ width: 1280, height: 1080 });
+        await dashboard.screenshot({
+          path: path.join(root, "tests/artifacts/domain-groups-zh.png"),
+          fullPage: true,
+        });
+      }
+    }
+    await page.evaluate(
+      (data) => chrome.runtime.sendMessage({ type: "import", data }),
+      translatedFixture,
+    );
+    await dashboard.setViewportSize({ width: 1280, height: 720 });
     await dashboard.goto(
       `chrome-extension://${loaded.id}/dashboard/index.html`,
     );
@@ -238,8 +494,9 @@ const server = require("node:http").createServer((_req, res) => {
             overflow: getComputedStyle(img.parentElement).overflow,
           };
         });
-        assert.equal(geometry.width, 40);
-        assert.equal(geometry.height, 40);
+        // DOMRect values can carry tiny floating-point rounding during motion.
+        assert(Math.abs(geometry.width - 40) < 0.1);
+        assert(Math.abs(geometry.height - 40) < 0.1);
         assert(Math.abs(geometry.dx) < 0.1 && Math.abs(geometry.dy) < 0.1);
         assert.equal(geometry.fit, "contain");
         assert.equal(geometry.overflow, "hidden");
@@ -261,6 +518,7 @@ const server = require("node:http").createServer((_req, res) => {
     );
     await dashboard.locator("#hero-number").waitFor();
     const popup = await browser.newPage();
+    popup.on("pageerror", (error) => errors.push(error.message));
     await popup.setViewportSize({ width: 380, height: 560 });
     await popup.goto(`chrome-extension://${loaded.id}/popup/index.html`);
     await popup.locator("#total").waitFor();

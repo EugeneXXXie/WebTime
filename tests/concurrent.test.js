@@ -54,7 +54,7 @@ test("legacy version-one backups migrate without changing historical time", () =
     },
   };
   const migrated = validateBackup(legacy);
-  assert.equal(migrated.version, 2);
+  assert.equal(migrated.version, 3);
   assert.equal(summarize(migrated, ["2026-09-30"]).total, 30);
   assert.equal(migrated.domains["github.com"].totalSeconds, 30);
 });

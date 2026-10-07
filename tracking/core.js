@@ -1,3 +1,5 @@
+import { getDomain } from "../vendor/tldts/index.esm.min.js";
+
 export const MAX_GAP_MS = 45000;
 export const DEFAULT_SETTINGS = {
   theme: "dark",
@@ -6,11 +8,15 @@ export const DEFAULT_SETTINGS = {
   blockLocalIPs: false,
 };
 export const freshData = () => ({
-  version: 2,
+  version: 3,
   settings: { ...DEFAULT_SETTINGS },
   domains: {},
+  groups: {},
   activity: { totalSeconds: 0, daily: {}, hourly: {} },
 });
+export function mainDomain(host) {
+  return getDomain(host, { allowPrivateDomains: false }) || host;
+}
 export function normalizeDomain(url) {
   try {
     const u = new URL(url);
@@ -73,6 +79,7 @@ export function siteName(domain) {
     "discord.com": "Discord",
     "reddit.com": "Reddit",
     "stackoverflow.com": "Stack Overflow",
+    "bilibili.com": "Bilibili",
   };
   return Object.hasOwn(known, domain) ? known[domain] : domain;
 }
@@ -83,10 +90,17 @@ export function addInterval(
   end,
   newSession = false,
   countTotal = true,
+  countGroup = true,
 ) {
   if (end <= start) return;
-  if (!Object.hasOwn(data.domains, domain))
-    Object.defineProperty(data.domains, domain, {
+  addSiteInterval(data.domains, domain, start, end, newSession);
+  if (countGroup)
+    addSiteInterval(data.groups, mainDomain(domain), start, end, newSession);
+  if (countTotal) addBuckets(data.activity, start, end);
+}
+function addSiteInterval(records, domain, start, end, newSession) {
+  if (!Object.hasOwn(records, domain))
+    Object.defineProperty(records, domain, {
       value: {
         title: siteName(domain),
         totalSeconds: 0,
@@ -99,12 +113,11 @@ export function addInterval(
       writable: true,
       configurable: true,
     });
-  const site = data.domains[domain];
+  const site = records[domain];
   if (newSession)
     site.sessions[dayKey(start)] = (site.sessions[dayKey(start)] || 0) + 1;
   addBuckets(site, start, end);
-  site.lastVisited = end;
-  if (countTotal) addBuckets(data.activity, start, end);
+  site.lastVisited = Math.max(site.lastVisited, end);
 }
 function addBuckets(bucket, start, end) {
   let cursor = start;
@@ -126,31 +139,35 @@ function addBuckets(bucket, start, end) {
 export class Tracker {
   constructor(data, current = null) {
     this.data = data;
-    // Accept a version-one in-flight checkpoint after a code reload.
-    this.current =
-      current?.domain && !current.domains
-        ? {
-            ...current,
-            domains: [
-              {
-                domain: current.domain,
-                started: current.started,
-                counted: current.counted,
-              },
-            ],
-          }
-        : current;
+    // Upgrade old checkpoints while keeping raw hosts for child accounting.
+    if (current && !current.hosts) {
+      const hosts = current.domains || [current];
+      const groups = new Map();
+      for (const item of hosts) {
+        const domain = mainDomain(item.domain),
+          old = groups.get(domain);
+        groups.set(domain, {
+          domain,
+          started: Math.min(old?.started ?? item.started, item.started),
+          counted: !!(old?.counted || item.counted),
+        });
+      }
+      current = { ...current, hosts, domains: [...groups.values()] };
+      current.domain = current.domains[0]?.domain;
+      current.started = current.domains[0]?.started;
+    }
+    this.current = current;
     this.status = this.current?.domains?.length ? "live" : "inactive";
   }
   update(input, now = Date.now(), status = "inactive") {
-    const domains = [
+    const hosts = [
       ...new Set((Array.isArray(input) ? input : [input]).filter(Boolean)),
     ];
     const previous = this.current,
       gap = previous ? now - previous.at : 0;
     const continuous = previous && gap >= 0 && gap <= MAX_GAP_MS;
     if (continuous && previous.domains.length && gap > 0) {
-      for (const item of previous.domains)
+      for (const item of previous.hosts)
         addInterval(
           this.data,
           item.domain,
@@ -158,22 +175,38 @@ export class Tracker {
           now,
           !item.counted,
           false,
+          false,
+        );
+      for (const item of previous.domains)
+        addSiteInterval(
+          this.data.groups,
+          item.domain,
+          previous.at,
+          now,
+          !item.counted,
         );
       // Union of concurrent domains: one elapsed interval, never N times.
       addBuckets(this.data.activity, previous.at, now);
     }
-    const items = domains.map((domain) => {
-      const old =
-        continuous && previous.domains.find((item) => item.domain === domain);
-      return {
-        domain,
-        started: old ? old.started : now,
-        counted: !!(old && (old.counted || gap > 0)),
-      };
-    });
+    const nextItems = (names, oldItems) =>
+      names.map((domain) => {
+        const old =
+          continuous && oldItems.find((item) => item.domain === domain);
+        return {
+          domain,
+          started: old ? old.started : now,
+          counted: !!(old && (old.counted || gap > 0)),
+        };
+      });
+    const items = nextItems(
+      [...new Set(hosts.map(mainDomain))],
+      previous?.domains,
+    );
+    const hostItems = nextItems(hosts, previous?.hosts);
     this.current = items.length
       ? {
           domains: items,
+          hosts: hostItems,
           domain: items[0].domain,
           started: items[0].started,
           at: now,
@@ -182,16 +215,50 @@ export class Tracker {
     this.status = items.length ? "live" : status;
   }
 }
-export function summarize(data, days, domain = null) {
-  const sites = Object.entries(data.domains)
-    .filter(([key]) => !domain || key === domain)
-    .map(([key, s]) => ({
-      domain: key,
-      ...s,
-      seconds: days.reduce((n, d) => n + (s.daily[d] || 0), 0),
+export function groupedSites(data, days = null) {
+  const seconds = (site) =>
+    days
+      ? days.reduce((n, day) => n + (site.daily[day] || 0), 0)
+      : site.totalSeconds;
+  const children = new Map();
+  for (const [host, site] of Object.entries(data.domains)) {
+    const domain = mainDomain(host);
+    if (!children.has(domain)) children.set(domain, []);
+    if (seconds(site) > 0)
+      children
+        .get(domain)
+        .push({ domain: host, ...site, seconds: seconds(site) });
+  }
+  return Object.entries(data.groups)
+    .map(([domain, site]) => ({
+      domain,
+      ...site,
+      seconds: seconds(site),
+      legacySeconds: Object.entries(site.legacyDaily || {}).reduce(
+        (sum, [day, value]) => sum + (!days || days.includes(day) ? value : 0),
+        0,
+      ),
+      children: (children.get(domain) || []).sort(
+        (a, b) => b.seconds - a.seconds,
+      ),
     }))
-    .filter((s) => s.seconds > 0)
+    .filter((site) => site.seconds > 0)
     .sort((a, b) => b.seconds - a.seconds);
+}
+export function summarize(data, days, domain = null, hostOnly = false) {
+  const child = domain && (hostOnly || !Object.hasOwn(data.groups, domain));
+  const sites = child
+    ? Object.entries(data.domains)
+        .filter(([key]) => key === domain)
+        .map(([key, site]) => ({
+          domain: key,
+          ...site,
+          seconds: days.reduce((sum, day) => sum + (site.daily[day] || 0), 0),
+        }))
+        .filter((site) => site.seconds > 0)
+    : groupedSites(data, days).filter(
+        (site) => !domain || site.domain === domain,
+      );
   const websiteTotal = sites.reduce((n, s) => n + s.seconds, 0);
   const total = domain
     ? websiteTotal
@@ -246,20 +313,21 @@ export function validateBackup(input) {
     /^\d{4}-\d{2}-\d{2}$/.test(k) && dayKey(new Date(k + "T12:00:00")) === k;
   if (
     !record(input) ||
-    ![1, 2].includes(input.version) ||
+    ![1, 2, 3].includes(input.version) ||
     !record(input.domains)
   )
     fail();
   const result = {
-    version: 2,
+    version: 3,
     settings: validateSettings(input.settings),
     domains: {},
+    groups: {},
   };
   if (Object.keys(input.domains).length > 20000) fail();
-  for (const [domain, s] of Object.entries(input.domains)) {
+  const cleanRecord = (domain, s, multiplier = 1, group = false) => {
     if (
       domain.length > 253 ||
-      normalizeDomain("https://" + domain) !== domain ||
+      (!group && normalizeDomain("https://" + domain) !== domain) ||
       /[/?#@\s]/.test(domain) ||
       !record(s)
     )
@@ -285,7 +353,7 @@ export function validateBackup(input) {
       if (
         !date(day) ||
         !number(seconds) ||
-        seconds > 90000 ||
+        seconds > 90000 * multiplier ||
         !record(s.hourly[day])
       )
         fail();
@@ -297,7 +365,7 @@ export function validateBackup(input) {
         if (
           !/^(?:[0-9]|1[0-9]|2[0-3])$/.test(hour) ||
           !number(value) ||
-          value > 7200
+          value > 7200 * multiplier
         )
           fail();
         clean.hourly[day][hour] = value;
@@ -320,12 +388,17 @@ export function validateBackup(input) {
         fail();
       clean.sessions[day] = count;
     }
-    Object.defineProperty(result.domains, domain, {
-      value: clean,
+    return clean;
+  };
+  const put = (records, domain, value) =>
+    Object.defineProperty(records, domain, {
+      value,
       enumerable: true,
       writable: true,
       configurable: true,
     });
+  for (const [domain, site] of Object.entries(input.domains)) {
+    put(result.domains, domain, cleanRecord(domain, site));
   }
   const summed = { totalSeconds: 0, daily: {}, hourly: {} };
   for (const site of Object.values(result.domains)) {
@@ -401,6 +474,109 @@ export function validateBackup(input) {
     }
     if (Math.abs(total - activity.totalSeconds) > 0.01) fail();
     result.activity = clean;
+  }
+  const members = new Map();
+  for (const [host, site] of Object.entries(result.domains)) {
+    const domain = mainDomain(host);
+    if (!members.has(domain)) members.set(domain, []);
+    members.get(domain).push(site);
+  }
+  if (input.version < 3) {
+    for (const [host, site] of Object.entries(result.domains)) {
+      const domain = mainDomain(host);
+      if (!Object.hasOwn(result.groups, domain)) {
+        put(result.groups, domain, {
+          title: siteName(domain),
+          totalSeconds: 0,
+          daily: {},
+          hourly: {},
+          sessions: {},
+          lastVisited: 0,
+        });
+      }
+      const group = result.groups[domain];
+      group.totalSeconds += site.totalSeconds;
+      group.lastVisited = Math.max(group.lastVisited, site.lastVisited);
+      for (const [day, seconds] of Object.entries(site.daily)) {
+        group.daily[day] = (group.daily[day] || 0) + seconds;
+        group.hourly[day] ||= {};
+        for (const [hour, value] of Object.entries(site.hourly[day]))
+          group.hourly[day][hour] = (group.hourly[day][hour] || 0) + value;
+      }
+      for (const [day, count] of Object.entries(site.sessions))
+        group.sessions[day] = (group.sessions[day] || 0) + count;
+    }
+    // Version one tracked only one website at a time. Version two overlaps
+    // cannot be reconstructed from aggregate buckets; preserve and label them.
+    if (input.version === 2)
+      for (const [domain, group] of Object.entries(result.groups)) {
+        const legacy = Object.fromEntries(
+          Object.entries(group.daily).filter(
+            ([day]) =>
+              members.get(domain).filter((site) => site.daily[day] > 0).length >
+              1,
+          ),
+        );
+        if (Object.keys(legacy).length) group.legacyDaily = legacy;
+      }
+  } else {
+    if (
+      !record(input.groups) ||
+      Object.keys(input.groups).length !== members.size
+    )
+      fail();
+    for (const [domain, site] of Object.entries(input.groups)) {
+      const children = members.get(domain);
+      if (!children) fail();
+      // Group keys already come from validated hostname membership; a PSL
+      // exception such as www.ck must not have its leading www stripped.
+      const clean = cleanRecord(domain, site, children.length, true);
+      if (site.legacyDaily !== undefined) {
+        if (!record(site.legacyDaily)) fail();
+        clean.legacyDaily = {};
+        for (const [day, value] of Object.entries(site.legacyDaily)) {
+          if (!date(day) || !number(value) || value > (clean.daily[day] || 0))
+            fail();
+          clean.legacyDaily[day] = value;
+        }
+      }
+      const days = new Set([
+        ...Object.keys(clean.daily),
+        ...children.flatMap((child) => Object.keys(child.daily)),
+      ]);
+      for (const day of days) {
+        const hours = new Set([
+          ...Object.keys(clean.hourly[day] || {}),
+          ...children.flatMap((child) => Object.keys(child.hourly[day] || {})),
+        ]);
+        for (const hour of hours) {
+          const value = clean.hourly[day]?.[hour] || 0;
+          const values = children.map(
+            (child) => child.hourly[day]?.[hour] || 0,
+          );
+          if (
+            value + 0.01 < Math.max(...values) ||
+            value > values.reduce((sum, n) => sum + n, 0) + 0.01 ||
+            value >
+              (result.activity.hourly[day]?.[hour] || 0) +
+                (clean.legacyDaily?.[day] || 0) +
+                0.01
+          )
+            fail();
+        }
+        if (
+          (clean.sessions[day] || 0) >
+          children.reduce((sum, child) => sum + (child.sessions[day] || 0), 0)
+        )
+          fail();
+      }
+      if (
+        clean.lastVisited !==
+        Math.max(...children.map((child) => child.lastVisited))
+      )
+        fail();
+      put(result.groups, domain, clean);
+    }
   }
   return result;
 }
