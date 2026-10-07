@@ -46,9 +46,13 @@ const server = require("node:http").createServer((_req, res) => {
     await page.goto(`chrome-extension://${loaded.id}/settings/index.html`);
     await page.locator("#language").selectOption("en");
     await page.locator("#theme").selectOption("light");
-    await page.waitForFunction(
-      () => document.documentElement.dataset.theme === "light",
-    );
+    await page.waitForFunction(async () => {
+      const { store } = await chrome.storage.local.get("store");
+      return (
+        store?.data.settings.theme === "light" &&
+        store?.data.settings.language === "en"
+      );
+    });
     const stored = await page.evaluate(() => chrome.storage.local.get("store"));
     assert.equal(stored.store.data.settings.theme, "light");
     assert.equal(stored.store.data.settings.language, "en");

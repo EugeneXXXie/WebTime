@@ -181,11 +181,22 @@ const server = http.createServer((req, res) => {
     await compatible.addInitScript((initial) => {
       let stored = initial;
       window.backupImports = [];
+      window.persistedSettings = structuredClone(initial.settings);
       window.chrome = {
         storage: { onChanged: { addListener() {} } },
         runtime: {
           id: "legacy-backup-test",
           async sendMessage(message) {
+            if (message.type === "snapshot")
+              await new Promise((resolve) => {
+                window.finishSettingsLoad = resolve;
+              });
+            if (message.type === "settings") {
+              // Reproduce slower MV3 messaging/storage on CI deterministically.
+              await new Promise((resolve) => setTimeout(resolve, 200));
+              stored.settings = message.settings;
+              window.persistedSettings = structuredClone(stored.settings);
+            }
             if (message.type === "import") {
               window.backupImports.push(message.data);
               if (message.data.version !== 2)
@@ -210,7 +221,41 @@ const server = http.createServer((req, res) => {
         },
       };
     }, legacy);
-    await compatible.goto(base + "/settings/index.html");
+    await compatible.goto(base + "/settings/index.html", {
+      waitUntil: "commit",
+    });
+    await compatible.waitForFunction(
+      () => typeof window.finishSettingsLoad === "function",
+    );
+    assert.equal(
+      await compatible
+        .locator(".setting select:disabled, #blockLocalIPs:disabled")
+        .count(),
+      4,
+      "Preferences must wait for the initial settings snapshot",
+    );
+    await compatible.evaluate(() => window.finishSettingsLoad());
+    await compatible.waitForFunction(
+      () => document.querySelector("#language").value === "en",
+    );
+    await compatible.locator("#language").selectOption("system");
+    await compatible.waitForFunction(
+      () => window.persistedSettings.language === "system",
+    );
+    await compatible.locator("#language").selectOption("en");
+    await compatible.locator("#theme").selectOption("light");
+    await compatible.waitForFunction(
+      () => window.persistedSettings.theme === "light",
+    );
+    assert.equal(
+      await compatible.evaluate(() => window.persistedSettings.language),
+      "en",
+      "Changing theme immediately after language must preserve the saved language",
+    );
+    await compatible.locator("#theme").selectOption("dark");
+    await compatible.waitForFunction(
+      () => window.persistedSettings.theme === "dark",
+    );
     const legacyDownload = compatible.waitForEvent("download");
     await compatible.locator("#export").click();
     const exportedLegacy = await legacyDownload;

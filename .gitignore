@@ -1,13 +1,28 @@
-tests/artifacts/
+# Dependencies
 node_modules/
+
+# Generated build and test output
 dist/
 coverage/
+.cache/
+tests/artifacts/
+test-results/
+playwright-report/
 *.log
-.DS_Store
-Thumbs.db
-.idea/
-.vscode/
+
+# Packaged Chrome extensions and signing keys
+*.crx
+*.pem
+
+# Local browsing backups and environment files
 .env
 .env.*
 webtime-backup-*.json
 screentime-backup-*.json
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/

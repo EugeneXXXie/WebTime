@@ -1,5 +1,9 @@
 node_modules/
 tests/artifacts/
 dist/
+coverage/
+.cache/
+test-results/
+playwright-report/
 package-lock.json
 vendor/tldts/index.esm.min.js

@@ -8,8 +8,12 @@ import {
   localize,
   onSettingsChanged,
 } from "../shared/ui.js";
+const preferenceKeys = ["theme", "animation", "language", "blockLocalIPs"];
 let settings,
   pending = null;
+function setPreferencesDisabled(disabled) {
+  for (const key of preferenceKeys) $("#" + key).disabled = disabled;
+}
 function showSettings(s) {
   settings = s;
   applyAppearance(s);
@@ -24,13 +28,16 @@ function notice(text) {
 async function initialize() {
   try {
     showSettings((await request("snapshot")).data.settings);
+    setPreferencesDisabled(false);
   } catch (error) {
     errorMessage(error);
   }
 }
-for (const key of ["theme", "animation", "language", "blockLocalIPs"])
+for (const key of preferenceKeys)
   $("#" + key).addEventListener("change", async (e) => {
-    e.target.disabled = true;
+    // Each save sends all preferences, so another control must wait until
+    // the latest saved settings arrive before building its next request.
+    setPreferencesDisabled(true);
     try {
       const next = {
         ...settings,
@@ -43,7 +50,7 @@ for (const key of ["theme", "animation", "language", "blockLocalIPs"])
       showSettings(settings);
       errorMessage(error);
     } finally {
-      e.target.disabled = false;
+      setPreferencesDisabled(false);
     }
   });
 $("#export").addEventListener("click", async () => {
